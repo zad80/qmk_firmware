@@ -320,20 +320,20 @@ ST_LINK_ARGS ?=
 
 
 DFU_UTIL ?= adafruit-nrfutil
-
+#  adafruit-nrfutil --verbose dfu serial -pkg ergozad_express_test_default.zip -p /dev/ttyACM0 -b 115200 --singlebank
 # Generate a .qmk for the QMK-FF
 qmk:$(BUILD_DIR)/$(TARGET).zip
 	printf "@ $(TARGET).json\n@=info.json\n" | zipnote -w $(TARGET).qmk
 
 define EXEC_DFU_UTIL
-	until $(DFU_UTIL) -l | grep -q "Found DFU"; do\
-		printf "$(MSG_BOOTLOADER_NOT_FOUND)" ;\
+	until lsusb | grep -q "ID 239a:8029"; do\
+		echo "nrf52840express not found ." ;\
 		sleep 5 ;\
 	done
-	$(DFU_UTIL) $(DFU_ARGS) -D $(BUILD_DIR)/$(TARGET).bin
+	$(DFU_UTIL) --verbose dfu serial -pkg $(BUILD_DIR)/$(TARGET).zip -p /dev/ttyACM0 -b 115200 --singlebank
 endef
 
-dfu-util: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
+dfu-util:
 	$(call EXEC_DFU_UTIL)
 dfu-util-split-left: dfu-util
 
@@ -446,7 +446,7 @@ ELF_FLAGS +=--specs=nano.specs --specs=nosys.specs
 	@$(BUILD_CMD)
 
 zip: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).zip
-flash: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
+flash: zip dfu-util
 ifeq ($(strip $(BOOTLOADER)),dfu)
 	$(call EXEC_DFU_UTIL)
 else ifeq ($(strip $(MCU_FAMILY)),KINETIS)
