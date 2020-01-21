@@ -326,7 +326,7 @@ qmk:$(BUILD_DIR)/$(TARGET).zip
 	printf "@ $(TARGET).json\n@=info.json\n" | zipnote -w $(TARGET).qmk
 
 define EXEC_DFU_UTIL
-	until lsusb | grep -q "ID 239a:8029"; do\
+	until lsusb | grep -q "ID 239a:0029"; do\
 		echo "nrf52840express not found ." ;\
 		sleep 5 ;\
 	done
