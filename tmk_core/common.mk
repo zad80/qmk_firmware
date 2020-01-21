@@ -1,4 +1,8 @@
+ifndef NRF52840EX
 COMMON_DIR = common
+else
+COMMON_DIR = tmk_core/common
+endif
 ifeq ($(PLATFORM),AVR)
 	PLATFORM_COMMON_DIR = $(COMMON_DIR)/avr
 else ifeq ($(PLATFORM),CHIBIOS)
@@ -8,6 +12,7 @@ else ifeq ($(PLATFORM),ARM_ATSAM)
 else
 	PLATFORM_COMMON_DIR = $(COMMON_DIR)/test
 endif
+
 
 TMK_COMMON_SRC +=	$(COMMON_DIR)/host.c \
 	$(COMMON_DIR)/keyboard.c \

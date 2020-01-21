@@ -3,13 +3,11 @@
 # We support folders up to 5 levels deep below `keyboards/`. This file is
 # responsible for determining which folder is being used and doing the
 # corresponding environment setup.
-
 ifndef VERBOSE
-.SILENT:
+#.SILENT:
 endif
 
 .DEFAULT_GOAL := all
-
 include common.mk
 
 # Set the filename for the final firmware binary
@@ -76,18 +74,24 @@ endif
 
 # Pull in rules.mk files from all our subfolders
 ifneq ("$(wildcard $(KEYBOARD_PATH_5)/rules.mk)","")
+    MAIN_APP_PATH := $(KEYBOARD_PATH_5)
     include $(KEYBOARD_PATH_5)/rules.mk
 endif
 ifneq ("$(wildcard $(KEYBOARD_PATH_4)/rules.mk)","")
+    MAIN_APP_PATH := $(KEYBOARD_PATH_4)
     include $(KEYBOARD_PATH_4)/rules.mk
 endif
 ifneq ("$(wildcard $(KEYBOARD_PATH_3)/rules.mk)","")
+    MAIN_APP_PATH := $(KEYBOARD_PATH_3)
     include $(KEYBOARD_PATH_3)/rules.mk
 endif
 ifneq ("$(wildcard $(KEYBOARD_PATH_2)/rules.mk)","")
+    MAIN_APP_PATH := $(KEYBOARD_PATH_2)
     include $(KEYBOARD_PATH_2)/rules.mk
+
 endif
 ifneq ("$(wildcard $(KEYBOARD_PATH_1)/rules.mk)","")
+    MAIN_APP_PATH := $(KEYBOARD_PATH_1)
     include $(KEYBOARD_PATH_1)/rules.mk
 endif
 
@@ -233,12 +237,19 @@ endif
 ifdef MCU_FAMILY
     FIRMWARE_FORMAT?=bin
     PLATFORM=CHIBIOS
+else ifdef NRF52840EX
+    PLATFORM=NRF52840
+    FIRMWARE_FORMAT=zip
 else ifdef ARM_ATSAM
     PLATFORM=ARM_ATSAM
     FIRMWARE_FORMAT=bin
 else
     PLATFORM=AVR
     FIRMWARE_FORMAT?=hex
+endif
+
+ifeq ($(PLATFORM),NRF52840)
+    include $(TMK_PATH)/nrfexpress.mk
 endif
 
 ifeq ($(PLATFORM),CHIBIOS)
@@ -328,12 +339,23 @@ KEYMAP_OUTPUT := $(BUILD_DIR)/obj_$(TARGET)
 ifneq ("$(wildcard $(KEYMAP_PATH)/config.h)","")
     CONFIG_H += $(KEYMAP_PATH)/config.h
 endif
-
+ifdef NRF52840EX
+SRC += $(KEYBOARD_SRC) \
+    $(KEYMAP_C) 
+VPATH += lib/chibios/os/common/oslib/include/
+VPATH += lib/chibios/os/license/
+VPATH += lib/chibios/os/common/startup/ARM/devices/LPC214x/
+VPATH += lib/chibios/os/common/ports/ARM
+VPATH += lib/chibios/os/rt/templates/
+VPATH += lib/chibios/os/rt/include/
+VPATH += lib/chibios/os/common/ports/ARM/compilers/GCC/
+# just a fake for now
+else
 # project specific files
 SRC += $(KEYBOARD_SRC) \
     $(KEYMAP_C) \
     $(QUANTUM_SRC)
-
+endif
 # Optimize size but this may cause error "relocation truncated to fit"
 #EXTRALDFLAGS = -Wl,--relax
 
@@ -342,14 +364,15 @@ VPATH += $(KEYMAP_PATH)
 VPATH += $(USER_PATH)
 VPATH += $(KEYBOARD_PATHS)
 VPATH += $(COMMON_VPATH)
-
 include common_features.mk
 include $(TMK_PATH)/protocol.mk
 include $(TMK_PATH)/common.mk
 include bootloader.mk
 
 SRC += $(patsubst %.c,%.clib,$(LIB_SRC))
-SRC += $(patsubst %.c,%.clib,$(QUANTUM_LIB_SRC))
+ifndef NRF52840EX
+SSRC += $(patsubst %.c,%.clib,$(QUANTUM_LIB_SRC))
+endif
 SRC += $(TMK_COMMON_SRC)
 OPT_DEFS += $(TMK_COMMON_DEFS)
 EXTRALDFLAGS += $(TMK_COMMON_LDFLAGS)

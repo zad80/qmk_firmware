@@ -55,7 +55,6 @@ OPT = s
 #     gnu99 = c99 plus GCC extensions
 CSTANDARD = -std=gnu99
 
-
 # Place -D or -U options here for C sources
 #CDEFS +=
 
@@ -91,16 +90,17 @@ ifeq ("$(shell echo "int main(){}" | $(CC) -fdiagnostics-color -x c - -o /dev/nu
 endif
 endif
 CFLAGS += -Wall
-CFLAGS += -Wstrict-prototypes
 ifneq ($(strip $(ALLOW_WARNINGS)), yes)
-    CFLAGS += -Werror
+    CFLAGS += -Werror  -Wstrict-prototypes
 endif
 #CFLAGS += -mshort-calls
 #CFLAGS += -fno-unit-at-a-time
 #CFLAGS += -Wundef
 #CFLAGS += -Wunreachable-code
 #CFLAGS += -Wsign-compare
+ifndef NRF52840EX
 CFLAGS += -Wa,-adhlns=$(@:%.o=%.lst)
+endif
 CFLAGS += $(CSTANDARD)
 
 #---------------- Compiler Options C++ ----------------
@@ -127,7 +127,9 @@ endif
 #CPPFLAGS += -Wstrict-prototypes
 #CPPFLAGS += -Wunreachable-code
 #CPPFLAGS += -Wsign-compare
-CPPFLAGS += -Wa,-adhlns=$(@:%.o=%.lst)
+ifndef NRF52840EX
+CPPFLAGS += -Wa,-adhlns=$(@:%.o=%.lst) $(CCPSTANDARD)
+endif
 #CPPFLAGS += $(CSTANDARD)
 
 #---------------- Assembler Options ----------------
@@ -140,11 +142,14 @@ CPPFLAGS += -Wa,-adhlns=$(@:%.o=%.lst)
 #  -listing-cont-lines: Sets the maximum number of continuation lines of hex
 #       dump that will be displayed for a given single line of source input.
 ASFLAGS += $(ADEFS)
+ifndef NRF52840EX
 ifndef SKIP_DEBUG_INFO
   ASFLAGS += -Wa,-adhlns=$(@:%.o=%.lst),-gstabs,--listing-cont-lines=100
 else
   ASFLAGS += -Wa,-adhlns=$(@:%.o=%.lst),--listing-cont-lines=100
 endif
+endif
+
 
 #---------------- Library Options ----------------
 # Minimalistic printf version
@@ -236,7 +241,7 @@ cpfirmware: $(FIRMWARE_FORMAT)
 eep: $(BUILD_DIR)/$(TARGET).eep
 lss: $(BUILD_DIR)/$(TARGET).lss
 sym: $(BUILD_DIR)/$(TARGET).sym
-LIBNAME=lib$(TARGET).a
+LIBNAME=$(BUILD_DIR)/lib$(TARGET).a
 lib: $(LIBNAME)
 
 # Display size of file.
@@ -289,15 +294,17 @@ gccversion :
 	$(COPY) $(BUILD_DIR)/$(TARGET).bin $(TARGET).bin;
 
 BEGIN = gccversion sizebefore
-
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILD_DIR)/$(TARGET).elf
 .PRECIOUS : $(OBJ)
 # Note the obj.txt depeendency is there to force linking if a source file is deleted
+
 %.elf: $(OBJ) $(MASTER_OUTPUT)/cflags.txt $(MASTER_OUTPUT)/ldflags.txt $(MASTER_OUTPUT)/obj.txt | $(BEGIN)
+	echo "$(CC) $(ALL_CFLAGS) $(filter-out %.txt,$^) --output $@ $(LDFLAGS)"
 	@$(SILENT) || printf "$(MSG_LINKING) $@" | $(AWK_CMD)
 	$(eval CMD=$(CC) $(ALL_CFLAGS) $(filter-out %.txt,$^) --output $@ $(LDFLAGS))
 	@$(BUILD_CMD)
+
 
 
 define GEN_OBJRULE
@@ -319,6 +326,7 @@ $1/%.o : %.c $1/%.d $1/cflags.txt $1/compiler.txt | $(BEGIN)
 # Compile: create object files from C++ source files.
 $1/%.o : %.cpp $1/%.d $1/cppflags.txt $1/compiler.txt | $(BEGIN)
 	@mkdir -p $$(@D)
+	@$$(SILENT) || printf "$$(MSG_COMPILING_CPP) $$<" | $$(AWK_CMD)
 	@$$(SILENT) || printf "$$(MSG_COMPILING_CPP) $$<" | $$(AWK_CMD)
 	$$(eval CMD=$$(CC) -c $$($1_CPPFLAGS) $$(GENDEPFLAGS) $$< -o $$@ && $$(MOVE_DEP))
 	@$$(BUILD_CMD)
@@ -386,9 +394,11 @@ clean:
 	$(REMOVE) $(BUILD_DIR)/$(TARGET).*
 
 show_path:
-	@echo VPATH=$(VPATH)
+	@echo TARGET=$(TARGET)
+	@echo VPATH_SRC=$(VPATH_SRC)
 	@echo SRC=$(SRC)
 	@echo OBJ=$(OBJ)
+	@echo OUTPUTS=$(OUTPUTS)
 
 objs-size:
 	for i in $(OBJ); do echo $$i; done | sort | xargs $(SIZE)

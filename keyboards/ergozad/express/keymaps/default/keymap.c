@@ -1,4 +1,4 @@
-#include QMK_KEYBOARD_H
+//#include QMK_KEYBOARD_H
 
 // Each layer gets a name for readability, which is then used in the keymap matrix below.
 // The underscores don't mean anything - you can have a layer called STUFF or any other name.
@@ -6,17 +6,6 @@
 #define _FL 1
 #define _CL 2
 
-enum custom_keycodes {
-    S_BSKTC = SAFE_RANGE,
-    S_ODEJY,
-    S_RCKBY,
-    S_DOEDR,
-    S_SCALE,
-    S_ONEUP,
-    S_COIN,
-    S_SONIC,
-    S_ZELDA
-};
 
 #ifdef AUDIO_ENABLE
   float song_basketcase[][2] = SONG(BASKET_CASE);
@@ -28,8 +17,8 @@ enum custom_keycodes {
   float song_one_up[][2]  = SONG(ONE_UP_SOUND);
   float song_sonic_ring[][2]  = SONG(SONIC_RING);
   float song_zelda_puzzle[][2]  = SONG(ZELDA_PUZZLE);
-#endif
 
+#include <unistd.h>
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   /* Keymap _BL: Base Layer (Default Layer)
    */
@@ -59,65 +48,5 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   _______,_______,_______,                BL_BRTG,BL_BRTG,                        _______,_______,MO(_FL),_______,RGB_HUD,RGB_SAD,RGB_HUI),
 };
 
+#endif
 
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    switch (keycode) {
-        #ifdef AUDIO_ENABLE
-            case S_BSKTC:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_basketcase);
-                }
-                return false;
-            case S_ODEJY:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_ode_to_joy);
-                }
-                return false;
-            case S_RCKBY:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_rock_a_bye_baby);
-                }
-                return false;
-            case S_DOEDR:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_doe_a_deer);
-                }
-                return false;
-            case S_SCALE:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_scale);
-                }
-                return false;
-            case S_ONEUP:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_one_up);
-                }
-                return false;
-            case S_COIN:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_coin);
-                }
-                return false;
-            case S_SONIC:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_sonic_ring);
-                }
-                return false;
-            case S_ZELDA:
-                if (record->event.pressed) {
-                    stop_all_notes();
-                    PLAY_SONG(song_zelda_puzzle);
-                }
-                return false;
-        #endif
-    }
-    return true;
-}

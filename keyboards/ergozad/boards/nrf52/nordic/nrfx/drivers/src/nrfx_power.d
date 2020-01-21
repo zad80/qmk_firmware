@@ -1,0 +1,27 @@
+keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/src/nrfx_power.o: \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/src/nrfx_power.c \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/nrfx.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx_config.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/nrfx_common.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf52840.h \
+ keyboards/ergozad/boards/nrf52/cmsis/include/core_cm4.h \
+ keyboards/ergozad/boards/nrf52/cmsis/include/core_cmInstr.h \
+ keyboards/ergozad/boards/nrf52/cmsis/include/cmsis_gcc.h \
+ keyboards/ergozad/boards/nrf52/cmsis/include/core_cmFunc.h \
+ keyboards/ergozad/boards/nrf52/cmsis/include/core_cmSimd.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/system_nrf52840.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf52840_bitfields.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf51_to_nrf52840.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf52_to_nrf52840.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/compiler_abstraction.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf_peripherals.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/mdk/nrf52840_peripherals.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx_glue.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/soc/nrfx_irqs.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/soc/nrfx_irqs_nrf52840.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/soc/nrfx_coredep.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/nrfx_errors.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/include/nrfx_power.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/hal/nrf_power.h \
+ keyboards/ergozad/boards/nrf52/nordic/nrfx/drivers/include/nrfx_power_clock.h
