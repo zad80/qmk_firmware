@@ -3,10 +3,11 @@ MCU = cortex-m4
 NRF52840EX = NRF52840EXP
 SPACE_CADET_ENABLE = no
 MAGIC_ENABLE = no
+BLUEFRUIT_ENABLE = yes
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
-APP_SRC += $(MAIN_APP_PATH)/hid_keyboard.cpp
-
+APP_SRC += ./$(MAIN_APP_PATH)/hid_keyboard.cpp
+APP_INC += ./$(MAIN_APP_PATH)/
 MSG_COMPILING = Compiling ergozad test C:
 MSG_COMPILING_CPP = Compiling ergozad test C++:
 USE_FPU_OPT = true

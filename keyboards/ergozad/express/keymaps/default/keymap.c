@@ -6,6 +6,7 @@
 #define _FL 1
 #define _CL 2
 
+#include "config.h"
 
 #ifdef AUDIO_ENABLE
   float song_basketcase[][2] = SONG(BASKET_CASE);

@@ -27,7 +27,7 @@ USE_FPU = true
 #SLEEP_LED_ENABLE = yes  # Breathing sleep LED during USB suspend
 #NKRO_ENABLE = yes	    # USB Nkey Rollover
 #CUSTOM_MATRIX = yes # Custom matrix file
-#AUDIO_ENABLE = yes
+AUDIO_ENABLE = no
 # SERIAL_LINK_ENABLE = yes
 
 # project specific files

@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "keycode.h"
 #include "action_code.h"
 #include "action_macro.h"
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {

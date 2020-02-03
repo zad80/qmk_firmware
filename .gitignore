@@ -1,6 +1,7 @@
 .history/
 .dep
 *.o
+*.zip
 *.bin
 *.eep
 *.elf

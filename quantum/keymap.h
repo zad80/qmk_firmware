@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug.h"
 #include "keycode_config.h"
 
+
 // ChibiOS uses RESET in its FlagStatus enumeration
 // Therefore define it as QK_RESET here, to avoid name collision
 #if defined(PROTOCOL_CHIBIOS)
