@@ -424,4 +424,4 @@ check-size: build
 objs-size: build
 
 include show_options.mk
-#include $(TMK_PATH)/rules.mk
+include $(TMK_PATH)/rules.mk

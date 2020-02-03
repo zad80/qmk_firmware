@@ -202,7 +202,7 @@ QUANTUM = -Iquantum/ -Iquantum/audio -Itmk_core/common/
 IINCDIR   = $(patsubst %,-I%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR)) $(QUANTUM)
 
 # SRC += $(APP_SRC) to use also tmk_core files use this line
-override SRC := $(APP_SRC)
+SRC += $(APP_SRC)
 C_SOURCE   := $(filter %.c, $(CORESRC))
 S_SOURCE   := $(filter %.s, $(CORESRC)) $(filter %.S, $(CORESRC))
 CPP_SOURCE := $(filter %.cpp, $(CORESRC))
