@@ -6,18 +6,60 @@
  */
 #include <variant.h>
 #include <Arduino.h>
-
+#include "matrix.h"
+#include "action.h"
+#include "config.h"
 #include <delay.h>
 #include <bluefruit.h>
+#include "keyboard.h"
+
 BLEDis bledis;
 BLEHidAdafruit blehid;
 void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap);
 
 void startAdv(void);
 bool hasKeyPressed = false;
+#ifdef __cplusplus
+// place here the simbol you wish to export to c programs too
+extern "C"{
+    void print(char *string);
+    void xprint(char *string, ...);
+    void led_set(uint8_t usb_led);
+    void xprintf(char *string, ...);
+};
+#endif
+
+static matrix_row_t matrix[MATRIX_ROWS] = {};
+matrix_row_t matrix_get_row(uint8_t row) { return matrix[row]; }
+
+void matrix_print(void) {}
+/* action for key */
+action_t action_for_key(uint8_t layer, keypos_t key){
+    action_t a;
+    a.code = 0x0;
+    return a;
+}
+/* user defined special function */
+void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {
+
+}
+uint8_t matrix_scan(void) {
+    // quantum use this matrix_scan_kb();
+    return 0x0;
+}
+void xprintf(char *string, ...) {
+    return;
+}
+void led_set(uint8_t usb_led) {
+    return;
+}
+void print(char *string) {
+    Serial.println(string);
+}
 
 void setup()
 {
+    Serial.begin(9600);
     Bluefruit.begin();
     Bluefruit.setTxPower(4);    // Check bluefruit.h for supported values
     Bluefruit.setName("ergozad");
@@ -48,6 +90,7 @@ void setup()
     // Set up and start advertising
     startAdv();
 }
+
 
 void startAdv(void)
 {
@@ -81,15 +124,12 @@ char *s = "this is a key\n";
 char *p = s;
 void loop()
 {
-    blehid.keyPress(*p);
-    blehid.keyRelease();
+
+    // tmk_core/common/keyboard.c
+    print("-");
+    keyboard_task();
     delay(2);
-    if ( *p == '\n' )
-    {
-        p = s;
-    } else {
-        p++;
-    }
+    print("+");
 }
 
 /**

@@ -24,3 +24,7 @@ Ther are two 'projects':
 Note: for both projects you have to manually place the board in dfu mode,
 double press the reset button once connected.
 Todo: implement the open close routine to place the board in dfu via software.
+
+## tmk_core
+To integrate the tmk_core, we need to find out which is the main loop which execute and read the keys from the matrix
+    keyboard_task();

@@ -48,7 +48,7 @@ INCDIR += $(LITTLEFS_INCDIR)
 INCDIR += $(INTERNALFS_INCDIR)
 endif
 # Here we keep all the parameter for linking compiling and so on check platform
-INCDIR = $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/config \
+INCDIR += $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/config \
          $(NRF52)/utility \
          $(NRF52)/nordic/nrfx $(NRF52)/nordic/nrfx/hal $(NRF52)/nordic/nrfx/mdk $(NRF52)/nordic/nrfx/soc \
          $(NRF52)/nordic/nrfx/drivers/include $(NRF52)/nordic/nrfx/drivers/src \
@@ -58,13 +58,27 @@ INCDIR = $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/confi
          $(NRF52)/freertos/portable/GCC/nrf52 \
          $(NRF52)/freertos/portable/CMSIS/nrf52 \
          $(NRF52)/sysview/Config \
-         $(NRF52)/sysview/SEGGER \
          $(NRF52)/Adafruit_TinyUSB_Core \
          $(NRF52)/Adafruit_TinyUSB_Core/tinyusb/src \
          $(NRF52)/Adafruit_TinyUSB_Core/tinyusb/src/class/cdc \
          $(NRF52)/sysview/SEGGER \
          $(NRFEXPRESS) $(APP_INC)
 
+ifneq ("$(wildcard $(KEYBOARD_PATH_1)/$(KEYBOARD_FOLDER_1).h)","")
+    INCDIR += $(KEYBOARD_PATH_1)
+endif
+ifneq ("$(wildcard $(KEYBOARD_PATH_2)/$(KEYBOARD_FOLDER_2).h)","")
+    INCDIR += $(KEYBOARD_PATH_2)
+endif
+ifneq ("$(wildcard $(KEYBOARD_PATH_3)/$(KEYBOARD_FOLDER_3).h)","")
+    INCDIR += $(KEYBOARD_PATH_3)
+endif
+ifneq ("$(wildcard $(KEYBOARD_PATH_4)/$(KEYBOARD_FOLDER_4).h)","")
+    INCDIR += $(KEYBOARD_PATH_4)
+endif
+ifneq ("$(wildcard $(KEYBOARD_PATH_5)/$(KEYBOARD_FOLDER_5).h)","")
+    INCDIR += $(KEYBOARD_PATH_5)/
+endif
 # get all the sources necessary to build the core lib $(BUILD_DIR)/$(TARGET).a
 
 BLUETOOTH_FULLSRC := $(call rwildcard,$(BLUETOOTHDIR_LIB)/src/,*.c)
@@ -198,23 +212,39 @@ SIZE = arm-none-eabi-size
 AR = arm-none-eabi-ar
 NM = arm-none-eabi-nm
 HEX = $(OBJCOPY) -O ihex
-QUANTUM = -Iquantum/ -Iquantum/audio -Itmk_core/common/
-IINCDIR   = $(patsubst %,-I%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR)) $(QUANTUM)
+QUANTUM = quantum/ quantum/audio quantum/process_keycode tmk_core/common/
+#IINCDIR = $(patsubst -I%,%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR) $(QUANTUM))
+#IINCDIR   = $(patsubst %,-I%,$(IINCDIR))
 
 # SRC += $(APP_SRC) to use also tmk_core files use this line
 SRC += $(APP_SRC)
+
+IINCDIR   = $(patsubst %,-I%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR) $(QUANTUM))
+
 C_SOURCE   := $(filter %.c, $(CORESRC))
 S_SOURCE   := $(filter %.s, $(CORESRC)) $(filter %.S, $(CORESRC))
 CPP_SOURCE := $(filter %.cpp, $(CORESRC))
 # are used only to build the final library .a which is then used with the APP_SRC
 C_OBJ = $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(CORESRC)))))
+print_var:
+	echo QMK_KEYBOARD_H = $(QMK_KEYBOARD_H)
+	echo KEYBOARD_PATH_1 = $(KEYBOARD_PATH_1)
+	echo KEYBOARD_FOLDER_1 = $(KEYBOARD_FOLDER_1)
+	echo KEYBOARD_PATH_2 = $(KEYBOARD_PATH_2)
+	echo KEYBOARD_FOLDER_2 = $(KEYBOARD_FOLDER_2)
+	echo KEYBOARD_PATH_3 = $(KEYBOARD_PATH_3)
+	echo KEYBOARD_FOLDER_3 = $(KEYBOARD_FOLDER_3)
+	echo KEYBOARD_PATH_4 = $(KEYBOARD_PATH_4)
+	echo KEYBOARD_FOLDER_4 = $(KEYBOARD_FOLDER_4)
+	echo KEYBOARD_PATH_5 = $(KEYBOARD_PATH_5)
+	echo KEYBOARD_FOLDER_5 = $(KEYBOARD_FOLDER_5)
 
 gen_file:
 	echo SRC = $(SRC)
 	$(foreach APP,$(SRC), $(eval APP_C_SRC+=$(filter %.c, $(APP))) )
 	$(foreach APP,$(SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
-	$(foreach APP,$(SRC), $(eval APP_INC+=-I$(dir $(APP))) )
-	#$(foreach APP,$(TMK_COMMON_SRC), $(eval APP_INC+=-I$(dir $(APP))) )
+	$(foreach APP,$(SRC), $(eval IINCDIR+=-I$(dir $(APP))) )
+	$(foreach APP,$(TMK_COMMON_SRC), $(eval IINCDIR+=-I$(dir $(APP))) )
 ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 	$(foreach APP,$(BLUETOOTH_FULLSRC), $(eval APP_C_SRC+=$(filter %.c, $(APP))) )
 	$(foreach APP,$(BLUETOOTH_FULLSRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
@@ -231,7 +261,7 @@ COMMON_FLAGS += $(CDC_FLAGS) -DCFG_TUSB_OS=OPT_OS_FREERTOS -D__LINT__ -D__NVIC_P
 
 ARDUINO_FLAGS += -DF_CPU=64000000 -DARDUINO=10809 -DARDUINO_NRF52840_FEATHER -DARDUINO_ARCH_NRF52 "-DARDUINO_BSP_VERSION=\"0.14.6\"" -DNRF52840_XXAA
 ARDUINO_FLAGS += -DUSBCON -DUSE_TINYUSB -DUSB_VID=0x239A -DUSB_PID=0x8029 "-DUSB_MANUFACTURER=\"Adafruit LLC\"" "-DUSB_PRODUCT=\"Feather nRF52840 Express\""
-ARDUINO_FLAGS += -DSOFTDEVICE_PRESENT -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES -DLFS_NAME_MAX=64 -Ofast -DCFG_DEBUG=2
+ARDUINO_FLAGS += -DSOFTDEVICE_PRESENT -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES -DLFS_NAME_MAX=64 -Ofast -DCFG_DEBUG=2 -DQMK_KEYBOARD_H=\"$(QMK_KEYBOARD_H)\"
 
 MCUFLAGS = -mcpu=cortex-m4 -mthumb -c -g -w -mfloat-abi=hard -mfpu=fpv4-sp-d16 -u _printf_float
 
@@ -440,6 +470,7 @@ all: zip
 clean: cleanfull
 # Target: clean project.
 cleanfull:
+	echo INCDIR = $(INCDIR)
 	echo "LIBNAME= $(LIBNAME)"
 	$(REMOVE) $(LIBNAME)
 	$(foreach OUTPUT,$(OBJ), $(REMOVE) -r $(OUTPUT) 2>/dev/null)
