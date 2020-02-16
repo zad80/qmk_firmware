@@ -1,6 +1,13 @@
 //
 // Created by zad on 2/5/20.
 //
+/*
+ *
+This file is used to define the matrix for your keyboard. You should define at least one C macro which translates an array into a matrix representing the physical switch matrix for your keyboard. If it's possible to build your keyboard with multiple layouts you should define additional macros.
+If you have only a single layout you should call this macro LAYOUT.
+When defining multiple layouts you should have a base layout, named LAYOUT_all, that supports all possible switch positions on your matrix, even if that layout is impossible to build physically. This is the macro you should use in your default keymap. You should then have additional keymaps named default_<layout> that use your other layout macros. This will make it easier for people to use the layouts you define.
+Layout macro names are entirely lowercase, except for the word LAYOUT at the front.
+ */
 
 #ifndef QMK_FIRMWARE_ERGOZAD_H
 #define QMK_FIRMWARE_ERGOZAD_H

@@ -1,3 +1,6 @@
+# The presence of this file means that the folder is a keyboard target and can be used in make commands.
+# This is where you setup the build environment for your keyboard and configure the default set of features.
+
 # MCU name
 MCU = cortex-m4
 NRF52840EX = NRF52840EXP
