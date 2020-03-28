@@ -6,7 +6,10 @@
 #define BASE 0 // default layer
 #define SYMB 1 // symbols
 #define MDIA 2 // media keys
-
+debug_matrix   = true;
+debug_keyboard = true;
+debug_mouse    = true;
+debug_enable   = true;
 enum custom_keycodes {
     PLACEHOLDER = SAFE_RANGE, // can always be here
     EPRM,

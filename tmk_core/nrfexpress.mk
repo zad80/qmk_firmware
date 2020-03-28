@@ -212,12 +212,14 @@ SIZE = arm-none-eabi-size
 AR = arm-none-eabi-ar
 NM = arm-none-eabi-nm
 HEX = $(OBJCOPY) -O ihex
+
 QUANTUM = quantum/ quantum/audio quantum/process_keycode tmk_core/common/
 #IINCDIR = $(patsubst -I%,%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR) $(QUANTUM))
 #IINCDIR   = $(patsubst %,-I%,$(IINCDIR))
+#to use also tmk_core files use this line
 
-# SRC += $(APP_SRC) to use also tmk_core files use this line
 SRC += $(APP_SRC)
+#SRC += $(APP_SRC) $(QUANTUM_SRC)
 
 IINCDIR   = $(patsubst %,-I%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR) $(QUANTUM))
 
@@ -262,6 +264,9 @@ COMMON_FLAGS += $(CDC_FLAGS) -DCFG_TUSB_OS=OPT_OS_FREERTOS -D__LINT__ -D__NVIC_P
 ARDUINO_FLAGS += -DF_CPU=64000000 -DARDUINO=10809 -DARDUINO_NRF52840_FEATHER -DARDUINO_ARCH_NRF52 "-DARDUINO_BSP_VERSION=\"0.14.6\"" -DNRF52840_XXAA
 ARDUINO_FLAGS += -DUSBCON -DUSE_TINYUSB -DUSB_VID=0x239A -DUSB_PID=0x8029 "-DUSB_MANUFACTURER=\"Adafruit LLC\"" "-DUSB_PRODUCT=\"Feather nRF52840 Express\""
 ARDUINO_FLAGS += -DSOFTDEVICE_PRESENT -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES -DLFS_NAME_MAX=64 -Ofast -DCFG_DEBUG=2 -DQMK_KEYBOARD_H=\"$(QMK_KEYBOARD_H)\"
+
+# avoid the problem in quantum debug_enabled not defined
+#ARDUINO_FLAGS += -include $(NRF52)/debug.h
 
 MCUFLAGS = -mcpu=cortex-m4 -mthumb -c -g -w -mfloat-abi=hard -mfpu=fpv4-sp-d16 -u _printf_float
 

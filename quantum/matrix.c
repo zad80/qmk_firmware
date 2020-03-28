@@ -259,6 +259,7 @@ void matrix_init(void) {
 uint8_t matrix_scan(void) {
     bool changed = false;
 
+
 #if defined(DIRECT_PINS) || (DIODE_DIRECTION == COL2ROW)
     // Set row, read cols
     for (uint8_t current_row = 0; current_row < MATRIX_ROWS; current_row++) {
@@ -272,7 +273,9 @@ uint8_t matrix_scan(void) {
 #endif
 
     debounce(raw_matrix, matrix, MATRIX_ROWS, changed);
-
+    if (changed) {
+        matrix_print();
+    }
     matrix_scan_quantum();
     return (uint8_t)changed;
 }

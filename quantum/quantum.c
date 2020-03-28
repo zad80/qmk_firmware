@@ -173,7 +173,7 @@ uint16_t get_event_keycode(keyevent_t event) {
  */
 bool process_record_quantum(keyrecord_t *record) {
     uint16_t keycode = get_record_keycode(record);
-
+    printf("process_record_quantum keycode = %d \n", keycode);
     // This is how you use actions here
     // if (keycode == KC_LEAD) {
     //   action_t action;
@@ -261,16 +261,6 @@ bool process_record_quantum(keyrecord_t *record) {
         switch (keycode) {
             case RESET:
                 reset_keyboard();
-                return false;
-#ifndef NO_DEBUG
-            case DEBUG:
-                debug_enable ^= 1;
-                if (debug_enable) {
-                    print("DEBUG: enabled.\n");
-                } else {
-                    print("DEBUG: disabled.\n");
-                }
-#endif
                 return false;
             case EEPROM_RESET:
                 eeconfig_init();
@@ -487,6 +477,7 @@ void send_char(char ascii_code) {
     if (is_shifted) {
         unregister_code(KC_LSFT);
     }
+    print("sending %c\n", keycode);
 }
 
 void set_single_persistent_default_layer(uint8_t default_layer) {
