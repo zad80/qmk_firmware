@@ -173,7 +173,6 @@ uint16_t get_event_keycode(keyevent_t event) {
  */
 bool process_record_quantum(keyrecord_t *record) {
     uint16_t keycode = get_record_keycode(record);
-    printf("process_record_quantum keycode = %d \n", keycode);
     // This is how you use actions here
     // if (keycode == KC_LEAD) {
     //   action_t action;

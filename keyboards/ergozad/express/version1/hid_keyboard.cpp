@@ -15,7 +15,7 @@
 #include "keyboard.h"
 #include <stdarg.h>
 #include QMK_KEYBOARD_H
-
+extern const uint8_t hid_keycode_to_ascii[128][2];
 BLEDis bledis;
 BLEHidAdafruit blehid;
 void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap);
@@ -25,10 +25,22 @@ bool hasKeyPressed = false;
 #ifdef __cplusplus
 // place here the simbol you wish to export to c programs too
 extern "C"{
+    const char *byte_to_binary(int x, int size, char* zero);
     void print(char *string);
+    void printfn(char *string, ...);
     void xprint(char *string, ...);
     void led_set(uint8_t usb_led);
     void xprintf(char *string, ...);
+    uint8_t eeprom_read_byte(const uint8_t *Address);
+    void eeprom_write_byte(uint8_t *Address, uint8_t Value);
+    void eeprom_update_byte(uint8_t *Address, uint8_t Value);
+    uint16_t eeprom_read_word(const uint16_t *Address);
+    void eeprom_write_word(uint16_t *Address, uint16_t Value);
+    void eeprom_update_word(uint16_t *Address, uint16_t Value);
+    uint32_t eeprom_read_dword(const uint32_t *Address);
+    void eeprom_write_dword(uint32_t *Address, uint32_t Value);
+    void eeprom_update_dword(uint32_t *Address, uint32_t Value);
+    void toggle_bluetooth();
 };
 #endif
 
@@ -51,36 +63,32 @@ static char _pf_buffer_[_PRINTF_BUFFER_LENGTH_];
 	_Stream_Obj_.print(_pf_buffer_);										\
 	_Stream_Obj_.println("");                                               \
 	}while(0)
-	
-void xprintf(char *format, ...)
-{
+
+void xprintf(char *format, ...) {
     va_list args;
     va_start(args, format);
-    printf(format, args);
+    int len = vsnprintf(_pf_buffer_, _PRINTF_BUFFER_LENGTH_, format, args);
+    _Stream_Obj_.print(_pf_buffer_);
     va_end(args);
     return;
 }
 
+void print(char *string)
+{
+    _Stream_Obj_.print(string);
+    return;
+}
+
 /*
- * Infinity Ergozad Pinusage:
- * Column pins are input with internal pull-down. Row pins are output and strobe with high.
- * Key is high or 1 when it turns on.
- *
- *     row: { A0, A1, A2, A3, A4 } Analog
- *     col: { 13, 12, 11, 10, 9, 6, 5, TX, SDA }
- */
-/* matrix state(1:on, 0:off) */
-// pin definitions can be found in variant.h
+ * Infinity Ergozad Pins usage: look at the config.h
+*/
 uint8_t cols[] = MATRIX_COL_PINS;
-uint8_t rows[] = MATRIX_ROW_PINS;//A6 is used for battery, A7 is analog reference
+uint8_t rows[] = MATRIX_ROW_PINS;
 int col_count = sizeof(cols)/ sizeof(cols[0]);
 int row_count = sizeof(rows)/ sizeof(rows[0]);
-static uint8_t matrix_read[LOCAL_MATRIX_COLS][MATRIX_ROWS];
+
 static matrix_row_t matrix[MATRIX_ROWS];
 static matrix_row_t matrix_debouncing[LOCAL_MATRIX_COLS];
-static bool debouncing = false;
-static uint16_t debouncing_time = 0;
-
 
 uint8_t offset = 0;
 #ifdef RIGHT_KEYBOARD // used to math the correct character pressed
@@ -97,15 +105,19 @@ static uint8_t keyboard_leds(void) { return bluefruit_keyboard_leds; }
 
 static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_system, send_consumer};
 
+
+static int send_bt = 0;
+
 host_driver_t *ergozad_driver(void) { return &driver; }
 
 /* action for key
 action_t action_for_key(uint8_t layer, keypos_t key){
+    printfn("action_for_key layer = %d, keypos = [r=%d,c=%d]",layer, key.row, key.col);
     action_t a;
     a.code = 0x0;
     return a;
 }
- */
+*/
 /* user defined special function */
 void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {
 
@@ -120,99 +132,75 @@ matrix_row_t matrix_get_row(uint8_t row)
 {
     return matrix[row];
 }
-/*
-void matrix_print(void)
-{
-    Serial.println("01234567");
-    for (uint8_t row = 0; row < row_count; row++) {
-        printf("%X0: ", row);
-        matrix_row_t data = matrix_get_row(row);
-        for (int col = 0; col < MATRIX_COLS; col++) {
-            if (data & (1<<col))
-                Serial.print("1");
-            else
-                Serial.print("0");
-        }
-        Serial.println("");
-    }
-}
-*/
 
-#define READ_ROWS(n) (digitalRead(rows[n]) << n)
+
 #define READ_ROW(r,c) (digitalRead(rows[r]) << c)
-const char *byte_to_binary(int x, int size)
+const char *byte_to_binary(int x, int size, char* zero)
 {
     static char b[32*2];
     b[0] = '\0';
-    
+
     int z;
     for (z = 0; z < size; z++)
     {
-        strcat(b, ((x & (1<<z)) == (1<<z)) ? "1 " : "  ");
+        strcat(b, ((x & (1<<z)) == (1<<z)) ? "1 " : zero);
     }
-    
+
     return b;
 }
-  
+const char *string_matrix_row(int layer, int row, int column)
+{
+    static char b[32*6];
+    char buffer[30];
+    b[0] = '\0';
+
+    int c;
+    for (c = 0; c < column; c++)
+    {
+        memset(buffer,'\0', 30);
+        //sprintf(buffer,"%d[%s]\t",pgm_read_word(&keymaps[(layer)][(row)][(c)]) );
+        sprintf(buffer,"%d[%s]\t",keymaps[(layer)][(row)][(c)] );
+        strcat(b, buffer);
+    }
+
+    return b;
+}
+
 void matrix_print(void) {
     uint8_t data = 0;
     // strobe the columns
     // Set columns to be output and initialize each to LOW.
     printfn("   1 2 3 4 5 6 7 8 9");
     for (int r = 0; r < row_count; r++) {
-        printfn("%d: %s", r+1, byte_to_binary(matrix[r], col_count));
+        printfn("%d: %s", r+1, byte_to_binary(matrix[r], col_count, "  "));
     }
 }
-/*
- *
-void matrix_print(void)
-{
-    Serial.println("01234567");
-    for (uint8_t row = 0; row < row_count; row++) {
-        printf("%X0: ", row);
-        matrix_row_t data = matrix_get_row(row);
-        for (int col = 0; col < MATRIX_COLS; col++) {
-            if (data & (1<<col))
-                Serial.print("1");
-            else
-                Serial.print("0");
-        }
-        Serial.println("");
-    }
-}
-uint8_t my_matrix_read(void) {
-    memset(matrix_read, 0, col_count * row_count * sizeof(uint8_t));
-    uint8_t data = 0;
-    // strobe the columns
-    // Set columns to be output and initialize each to LOW.
-    for (int c = 0; c < col_count; c++) {
-        digitalWrite(cols[c], HIGH);
-        for (int r = 0; r < row_count; r++) {
-            matrix_read[c][r] = READ_ROW(r);
-        }
-        // Set columns to LOW.
-        digitalWrite(cols[c], LOW);
-    }
-    return 1;
-}
-*/
 
-uint8_t my_matrix_scan(void) {
-    //memset(matrix_read, 0, col_count * row_count * sizeof(uint8_t));
+void print_prg_matrix() {
+    uint16_t data = 0;
+    printfn("   1 2 3 4 5 6 7 8 9");
+    for (int r = 0; r < row_count; r++) {
+        printfn("%d: %s", r+1, string_matrix_row(0 , r, col_count));
+    }
+}
+
+
+
+uint8_t matrix_scan(void) {
     bool changed = false;
     // strobe the columns
     // Set columns to be output and initialize each to LOW.
     for (int r = 0; r < row_count; r++) {
         matrix_row_t data = 0;
         matrix_row_t prev =  matrix[r];
-        
+
         for (int c = 0; c < col_count; c++) {
             digitalWrite(cols[c], HIGH);
             data |= READ_ROW(r, c) ;
             // Set columns to LOW.
             digitalWrite(cols[c], LOW);
         }
-        
+
         if (prev!=data) {
             changed = true;
             //printfn("prev = [%d] 0x%08x",r, prev);
@@ -220,56 +208,11 @@ uint8_t my_matrix_scan(void) {
             matrix[r] = data;
         }
     }
-    if (changed) {
-        matrix_print();
-    }
     return 1;
 }
-
-uint8_t matrix_scan(void) {
-    matrix_row_t data = 0;
-    boolean changed = false;
-    
-    // strobe the columns
-    // Set columns to be output and initialize each to LOW.
-    for (int c = 0; c < col_count; c++) {
-        digitalWrite(cols[c], HIGH);
-        // read rows, we cam do it via interrupts
-        data = ( READ_ROWS(0) | READ_ROWS(1) | READ_ROWS(2) | READ_ROWS(3) | READ_ROWS(4));
-        // Set columns to LOW.
-        printfn("data 0x%x", data);
-        digitalWrite(cols[c], LOW);
-        if (matrix_debouncing[c] != data) {
-            matrix_debouncing[c] = data;
-            debouncing = true;
-            debouncing_time = millis();
-        }
-    }
-    // offset is used to determine the side left = 0 and right = 9
-    
-    if (debouncing && (millis() - debouncing_time) > DEBOUNCE) {
-        for (int col = 0; col < LOCAL_MATRIX_COLS; col++) {
-            matrix_row_t prev =  matrix[offset + col];
-            matrix[offset + col] = matrix_debouncing[col];
-            changed = prev !=  matrix[offset + col];
-        }
-        debouncing = false;
-    }
-    //matrix_scan_quantum();
-    if (changed) {
-        matrix_print();
-    }
-    return 1;
-
-}
-
-
 
 void led_set(uint8_t usb_led) {
     return;
-}
-void print(char *string) {
-    Serial.println(string);
 }
 
 void matrix_clean() {
@@ -287,16 +230,13 @@ void matrix_init(void)
         pinMode(rows[i], INPUT_PULLDOWN);
         //attachInterrupt(digitalPinToInterrupt(rows[i].pin), rows[i].event, RISING);
     }
-    
+
     // Set columns to be output and initialize each to LOW.
     for (int i = 0; i < col_count; i++) {
         pinMode(cols[i], OUTPUT);
         digitalWrite(cols[i], LOW);
     }
-    //matrix_clean();
-    // todo: do we need quantum ? matrix_init_quantum();
     print("DONE initializing gpio");
-    //matrix_init_quantum();
 }
 
 
@@ -307,12 +247,12 @@ void setup()
     Bluefruit.begin();
     Bluefruit.setTxPower(4);    // Check bluefruit.h for supported values
     Bluefruit.setName("ergozad");
-    
+
     // Configure and Start Device Information Service
     bledis.setManufacturer("Adafruit Industries");
     bledis.setModel("Bluefruit Feather 52");
     bledis.begin();
-    
+
     /* Start BLE HID
      * Note: Apple requires BLE device must have min connection interval >= 20m
      * ( The smaller the connection interval the faster we could send data).
@@ -321,10 +261,10 @@ void setup()
      * connection interval to 11.25  ms and 15 ms respectively for best performance.
      */
     blehid.begin();
-    
+
     // Set callback for set LED from central
     blehid.setKeyboardLedCallback(set_keyboard_led);
-    
+
     /* Set connection interval (min, max) to your perferred value.
      * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
      * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms
@@ -343,13 +283,13 @@ void startAdv(void)
     Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
     Bluefruit.Advertising.addTxPower();
     Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
-    
+
     // Include BLE HID service
     Bluefruit.Advertising.addService(blehid);
-    
+
     // There is enough room for the dev name in the advertising packet
     Bluefruit.Advertising.addName();
-    
+
     /* Start Advertising
      * - Enable auto advertising if disconnected
      * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
@@ -381,34 +321,30 @@ void getline(char * buffer, int maxchar)
     while (c != '\n' && c != '\r' && idx < maxchar);
     buffer[idx] = 0;
 }
-
-
-uint8_t my_matrix_print(void) {
-    uint8_t data = 0;
-    // strobe the columns
-    // Set columns to be output and initialize each to LOW.
-    printfn("   1 2 3 4 5 6 7 8 9");
-    for (int r = 0; r < row_count; r++) {
-        printf("%d: ", r + 1);
-    for (int c = 0; c < col_count; c++) {
-        printf("%d ", matrix_read[c][r]);
+void toggle_bluetooth() {
+    printfn("toggle bluetoot");
+    if (send_bt) {
+        send_bt = 0;
+    } else {
+        send_bt = 1;
     }
-    printfn("");
-    }
-    return 1;
-    
 }
-
 void serial_debugger() {
     char line[256];
     getline(line, sizeof(line));
-    if ( strncmp("l", line, strlen("l")) == 0 ) {
+    if (strncmp("m", line, strlen("m")) == 0) {
+        printf("print matrix");
+        print_prg_matrix();
+
+    }else if (strncmp("l", line, strlen("l")) == 0) {
         printfn("reading matrix now");
-        //my_matrix_read();
-        //my_matrix_print();
         matrix_scan();
         matrix_print();
-        matrix_clean();
+    } else if (strncmp("d", line, strlen("d")) == 0) {
+        printfn("toggle debug");
+        debug_toggle();
+    }else if (strncmp("b", line, strlen("b")) == 0) {
+       toggle_bluetooth();
     } else {
         printfn("you typed %s", line);
     }
@@ -416,11 +352,14 @@ void serial_debugger() {
 
 void loop()
 {
-    // tmk_core/common/keyboard.c
-    //keyboard_task();
     //to debug
-    //serial_debugger();
-    my_matrix_scan();
+    if (Serial.available()) {
+        serial_debugger();
+    }
+    // tmk_core/common/keyboard.c
+    keyboard_task();
+
+    //matrix_scan();
 
 
 }
@@ -435,7 +374,7 @@ void loop()
 void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
 {
     (void) conn_handle;
-    
+
     // light up Red Led if any bits is set
     if ( led_bitmap )
     {
@@ -446,7 +385,6 @@ void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
         ledOff( LED_RED );
     }
 }
-
 
 
 static void send_keyboard(report_keyboard_t *report) {
@@ -462,11 +400,43 @@ static void send_keyboard(report_keyboard_t *report) {
     bluefruit_trace_footer();
 #endif
      */
-    printfn("send_keyboard");
+    if (send_bt) {
+        blehid.keyboardReport(report->mods, report->keys);
+    } else {
+        bool shifted = false;
+        if (report->mods) {
+            if (report->mods & (KEYBOARD_MODIFIER_LEFTCTRL | KEYBOARD_MODIFIER_RIGHTCTRL)) {
+                printfn("Ctrl ");
+            }
+
+            if (report->mods & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT)) {
+                printfn("Shift ");
+
+                shifted = true;
+            }
+
+            if (report->mods & (KEYBOARD_MODIFIER_LEFTALT | KEYBOARD_MODIFIER_RIGHTALT)) {
+                printfn("Alt ");
+            }
+        }
+        for (uint8_t i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
+            char    ch = 0;
+            uint8_t kc = report->keys[i];
+            if (kc < 128) {
+                ch = shifted ? hid_keycode_to_ascii[kc][1] : hid_keycode_to_ascii[kc][0];
+            } else {
+                // non-US keyboard !!??
+            }
+            // Printable
+            if (ch) {
+                printfn("%c", ch);
+            }
+        }
+    }
 }
 
 static void send_mouse(report_mouse_t *report) {
-    printfn("send_keyboard");
+    printfn("send_mouse");
     /*
 #ifdef BLUEFRUIT_TRACE_SERIAL
     bluefruit_trace_header();
@@ -515,7 +485,7 @@ static void send_consumer(uint16_t data) {
     static uint16_t last_data = 0;
     if (data == last_data) return;
     last_data = data;
-    
+
     uint16_t bitmap = CONSUMER2BLUEFRUIT(data);
 
 #ifdef BLUEFRUIT_TRACE_SERIAL
@@ -539,4 +509,130 @@ static void send_consumer(uint16_t data) {
     bluefruit_trace_footer();
 #endif
      */
+}
+
+/* ###############################################################################
+ * ############### Unused functions just keep for reference
+ * ###############################################################################
+ */
+/*
+ *
+static uint8_t matrix_read[LOCAL_MATRIX_COLS][MATRIX_ROWS];
+uint8_t my_matrix_print(void) {
+    uint8_t data = 0;
+    // strobe the columns
+    // Set columns to be output and initialize each to LOW.
+    printfn("   1 2 3 4 5 6 7 8 9");
+    for (int r = 0; r < row_count; r++) {
+        printf("%d: ", r + 1);
+    for (int c = 0; c < col_count; c++) {
+        printf("%d ", matrix_read[c][r]);
+    }
+    printfn("");
+    }
+    return 1;
+
+}
+static bool debouncing = false;
+static uint16_t debouncing_time = 0;
+#define READ_ROWS(n) (digitalRead(rows[n]) << n)
+uint8_t matrix_scan(void) {
+    matrix_row_t data = 0;
+    boolean changed = false;
+
+    // strobe the columns
+    // Set columns to be output and initialize each to LOW.
+    for (int c = 0; c < col_count; c++) {
+        digitalWrite(cols[c], HIGH);
+        // read rows, we cam do it via interrupts
+        data = ( READ_ROWS(0) | READ_ROWS(1) | READ_ROWS(2) | READ_ROWS(3) | READ_ROWS(4));
+        // Set columns to LOW.
+        printfn("data 0x%x", data);
+        digitalWrite(cols[c], LOW);
+        if (matrix_debouncing[c] != data) {
+            matrix_debouncing[c] = data;
+            debouncing = true;
+            debouncing_time = millis();
+        }
+    }
+    // offset is used to determine the side left = 0 and right = 9
+
+    if (debouncing && (millis() - debouncing_time) > DEBOUNCE) {
+        for (int col = 0; col < LOCAL_MATRIX_COLS; col++) {
+            matrix_row_t prev =  matrix[offset + col];
+            matrix[offset + col] = matrix_debouncing[col];
+            changed = prev !=  matrix[offset + col];
+        }
+        debouncing = false;
+    }
+    //matrix_scan_quantum();
+    if (changed) {
+        matrix_print();
+    }
+    return 1;
+
+}
+ */
+
+/*****************************************************************************
+ *  Wrap library in AVR style functions.
+ *******************************************************************************/
+uint8_t eeprom_read_byte(const uint8_t *Address) {
+    const uint16_t p = (const uint32_t)Address;
+    //return EEPROM_ReadDataByte(p);
+    return 0x0;
+}
+
+void eeprom_write_byte(uint8_t *Address, uint8_t Value) {
+    uint16_t p = (uint32_t)Address;
+    //EEPROM_WriteDataByte(p, Value);
+}
+
+void eeprom_update_byte(uint8_t *Address, uint8_t Value) {
+    uint16_t p = (uint32_t)Address;
+    //EEPROM_WriteDataByte(p, Value);
+}
+
+uint16_t eeprom_read_word(const uint16_t *Address) {
+    const uint16_t p = (const uint32_t)Address;
+    //return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8);
+    return 0x0;
+}
+
+void eeprom_write_word(uint16_t *Address, uint16_t Value) {
+    uint16_t p = (uint32_t)Address;
+    //EEPROM_WriteDataByte(p, (uint8_t)Value);
+    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+}
+
+void eeprom_update_word(uint16_t *Address, uint16_t Value) {
+    uint16_t p = (uint32_t)Address;
+    //EEPROM_WriteDataByte(p, (uint8_t)Value);
+    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+}
+
+uint32_t eeprom_read_dword(const uint32_t *Address) {
+    const uint16_t p = (const uint32_t)Address;
+    //return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8) | (EEPROM_ReadDataByte(p + 2) << 16) | (EEPROM_ReadDataByte(p + 3) << 24);
+    return 0x0;
+}
+
+void eeprom_write_dword(uint32_t *Address, uint32_t Value) {
+    uint16_t p = (const uint32_t)Address;
+    //EEPROM_WriteDataByte(p, (uint8_t)Value);
+    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+    //EEPROM_WriteDataByte(p + 2, (uint8_t)(Value >> 16));
+    //EEPROM_WriteDataByte(p + 3, (uint8_t)(Value >> 24));
+}
+
+void eeprom_update_dword(uint32_t *Address, uint32_t Value) {
+    uint16_t p             = (const uint32_t)Address;
+    /*uint32_t existingValue = EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8) | (EEPROM_ReadDataByte(p + 2) << 16) | (EEPROM_ReadDataByte(p + 3) << 24);
+    if (Value != existingValue) {
+        EEPROM_WriteDataByte(p, (uint8_t)Value);
+        EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+        EEPROM_WriteDataByte(p + 2, (uint8_t)(Value >> 16));
+        EEPROM_WriteDataByte(p + 3, (uint8_t)(Value >> 24));
+    }
+    */
 }

@@ -77,7 +77,7 @@ bool matrix_is_modified(void) {
     if (debounce_active()) return false;
     return true;
 }
-
+#ifndef ARDUINO_NRF52840_FEATHER
 inline bool matrix_is_on(uint8_t row, uint8_t col) { return (matrix[row] & ((matrix_row_t)1 << col)); }
 
 inline matrix_row_t matrix_get_row(uint8_t row) {
@@ -108,6 +108,7 @@ uint8_t matrix_key_count(void) {
     }
     return count;
 }
+#endif
 
 #ifdef DIRECT_PINS
 
@@ -241,6 +242,7 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
 
 #endif
 
+#ifndef ARDUINO_NRF52840_FEATHER
 void matrix_init(void) {
     // initialize key pins
     init_pins();
@@ -279,3 +281,4 @@ uint8_t matrix_scan(void) {
     matrix_scan_quantum();
     return (uint8_t)changed;
 }
+#endif

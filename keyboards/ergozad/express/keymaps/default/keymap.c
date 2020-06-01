@@ -3,6 +3,7 @@
 #include "config.h"
 
 
+
 #define BASE 0 // default layer
 #define SYMB 1 // symbols
 #define MDIA 2 // media keys
@@ -17,6 +18,9 @@ enum custom_keycodes {
     RGB_SLD
 };
 
+//#define LOCAL_MATRIX_COLS 9
+//#define MATRIX_COLS LOCAL_MATRIX_COLS*2
+//#define MATRIX_ROWS 5
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 /* Keymap 0: Basic layer
  *
@@ -41,25 +45,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  */
 // If it accepts an argument (i.e, is a function), it doesn't need KC_.
 // Otherwise, it needs KC_*
-[BASE] = LAYOUT_ergozad(  // layer 0 : default
-    // left hand
-    KC_EQL,         KC_1,         KC_2,   KC_3,   KC_4,   KC_5,   KC_LEFT,
-    KC_DEL,         KC_Q,         KC_W,   KC_E,   KC_R,   KC_T,   TG(SYMB),
-KC_BSPC,        KC_A,         KC_S,   KC_D,   KC_F,   KC_G,
-KC_LSFT,        CTL_T(KC_Z),  KC_X,   KC_C,   KC_V,   KC_B,   ALL_T(KC_NO),
-    LT(SYMB,KC_GRV),KC_QUOT,      LALT(KC_LSFT),  KC_LEFT,KC_RGHT,
-    ALT_T(KC_APP),  KC_LGUI,
-    KC_HOME,
-    KC_SPC,KC_BSPC,KC_END,
-// right hand
-    KC_RGHT,     KC_6,   KC_7,  KC_8,   KC_9,   KC_0,             KC_MINS,
-    TG(SYMB),    KC_Y,   KC_U,  KC_I,   KC_O,   KC_P,             KC_BSLS,
-KC_H,   KC_J,  KC_K,   KC_L,   LT(MDIA, KC_SCLN),GUI_T(KC_QUOT),
-    MEH_T(KC_NO),KC_N,   KC_M,  KC_COMM,KC_DOT, CTL_T(KC_SLSH),   KC_RSFT,
-    KC_UP, KC_DOWN,KC_LBRC,KC_RBRC,          TT(SYMB),
-KC_LALT,        CTL_T(KC_ESC),
-    KC_PGUP,
-    KC_PGDN,KC_TAB, KC_ENT
+[BASE] = LAYOUT_ergodox(
+  // left hand
+  KC_EQL,          KC_1,        KC_2,          KC_3,    KC_4,    KC_5,    KC_LEFT,//7
+  KC_DEL,          KC_Q,        KC_W,          KC_E,    KC_R,    KC_T,    TG(SYMB),//7
+  KC_BSPC,         KC_A,        KC_S,          KC_D,    KC_F,    KC_G,  ALT_T(KC_NO),                        ALT_T(KC_APP), KC_LGUI,//9
+  KC_LSFT,         CTL_T(KC_Z), KC_X,          KC_C,    KC_V,    KC_B,                                                      KC_HOME,//7
+  LT(SYMB,KC_GRV), KC_QUOT,     LALT(KC_LSFT), KC_LEFT, KC_RGHT,                                           KC_SPC, KC_BSPC, KC_END,//8
+  // right hand
+  KC_RGHT,      KC_6,    KC_7,    KC_8,    KC_9,              KC_0,           KC_MINS,//7
+  TG(SYMB),     KC_Y,    KC_U,    KC_I,    KC_O,              KC_P,           KC_BSLS,//7
+  KC_H,         KC_J,    KC_K,    KC_L,    LT(MDIA, KC_SCLN), GUI_T(KC_QUOT),ALT_T(KC_APP), KC_LGUI, KC_RSFT,//9
+  KC_N,    KC_M,    KC_COMM, KC_DOT,            CTL_T(KC_SLSH), KC_UP,        KC_DOWN, //7
+  KC_LBRC, KC_RBRC, TT(SYMB), KC_LALT, CTL_T(KC_ESC),KC_PGUP, KC_PGDN, KC_TAB
 ),
 /* Keymap 1: Symbol Layer
  *
@@ -83,25 +81,19 @@ KC_LALT,        CTL_T(KC_ESC),
  *                                 `--------------------'       `--------------------'
  */
 // SYMBOLS
-[SYMB] = LAYOUT_ergozad(
+[SYMB] = LAYOUT_ergodox(
     // left hand
-    VRSN,   KC_F1,  KC_F2,  KC_F3,  KC_F4,  KC_F5,  KC_TRNS,
-    KC_TRNS,KC_EXLM,KC_AT,  KC_LCBR,KC_RCBR,KC_PIPE,KC_TRNS,
-    KC_TRNS,KC_HASH,KC_DLR, KC_LPRN,KC_RPRN,KC_GRV,
-    KC_TRNS,KC_PERC,KC_CIRC,KC_LBRC,KC_RBRC,KC_TILD,KC_TRNS,
-    EPRM,KC_TRNS,KC_TRNS,KC_TRNS,KC_TRNS,
-    RGB_MOD,KC_TRNS,
-    KC_TRNS,
-    RGB_VAD,RGB_VAI,KC_TRNS,
+      VRSN,            KC_F1,       KC_F2,        KC_F3,    KC_F4,  KC_F5,  KC_TRNS,//7
+      KC_TRNS,         KC_EXLM,     KC_AT,        KC_LCBR,  KC_RCBR,KC_PIPE,KC_TRNS,//7
+      KC_TRNS,         KC_HASH,     KC_DLR,       KC_LPRN,  KC_RPRN,KC_GRV, ALT_T(KC_NO),                        RGB_MOD,KC_TRNS,//9
+      KC_TRNS,         KC_PERC,     KC_CIRC,      KC_LBRC,  KC_RBRC,KC_TILD,                                            KC_TRNS,//7
+      EPRM,            KC_TRNS,     KC_TRNS,      KC_TRNS,  KC_TRNS,                                             RGB_VAD,RGB_VAI,KC_TRNS,//8
 // right hand
     KC_TRNS, KC_F6,   KC_F7,  KC_F8,   KC_F9,   KC_F10,  KC_F11,
     KC_TRNS, KC_UP,   KC_7,   KC_8,    KC_9,    KC_ASTR, KC_F12,
-    KC_DOWN, KC_4,   KC_5,    KC_6,    KC_PLUS, KC_TRNS,
-    KC_TRNS, KC_AMPR, KC_1,   KC_2,    KC_3,    KC_BSLS, KC_TRNS,
-    KC_TRNS,KC_DOT,  KC_0,    KC_EQL,  KC_TRNS,
-    RGB_TOG, RGB_SLD,
-    KC_TRNS,
-    KC_TRNS, RGB_HUD, RGB_HUI
+    KC_DOWN, KC_4,   KC_5,    KC_6,    KC_PLUS, KC_TRNS, KC_TRNS,                                                RGB_TOG, RGB_SLD,
+    KC_TRNS, KC_AMPR, KC_1,   KC_2,    KC_3,    KC_BSLS,                                                                KC_TRNS,
+    KC_TRNS,KC_DOT,  KC_0,    KC_EQL,  KC_TRNS,                                                                  KC_TRNS, RGB_HUD, RGB_HUI
 ),
 /* Keymap 2: Media and mouse keys
  *
@@ -124,7 +116,23 @@ KC_LALT,        CTL_T(KC_ESC),
  *                                 |      |      |      |       |      |      |      |
  *                                 `--------------------'       `--------------------'
  */
-// MEDIA AND MOUSE
+/* MEDIA AND MOUSE
+for now is equal to symbol*/
+[MDIA] = LAYOUT_ergodox(
+    // left hand
+      VRSN,            KC_F1,       KC_F2,        KC_F3,    KC_F4,  KC_F5,  KC_TRNS,//7
+      KC_TRNS,         KC_EXLM,     KC_AT,        KC_LCBR,  KC_RCBR,KC_PIPE,KC_TRNS,//7
+      KC_TRNS,         KC_HASH,     KC_DLR,       KC_LPRN,  KC_RPRN,KC_GRV, ALT_T(KC_NO),                        RGB_MOD,KC_TRNS,//9
+      KC_TRNS,         KC_PERC,     KC_CIRC,      KC_LBRC,  KC_RBRC,KC_TILD,                                            KC_TRNS,//7
+      EPRM,            KC_TRNS,     KC_TRNS,      KC_TRNS,  KC_TRNS,                                             RGB_VAD,RGB_VAI,KC_TRNS,//8
+// right hand
+    KC_TRNS, KC_F6,   KC_F7,  KC_F8,   KC_F9,   KC_F10,  KC_F11,
+    KC_TRNS, KC_UP,   KC_7,   KC_8,    KC_9,    KC_ASTR, KC_F12,
+    KC_DOWN, KC_4,   KC_5,    KC_6,    KC_PLUS, KC_TRNS, KC_TRNS,                                                RGB_TOG, RGB_SLD,
+    KC_TRNS, KC_AMPR, KC_1,   KC_2,    KC_3,    KC_BSLS,                                                                KC_TRNS,
+    KC_TRNS,KC_DOT,  KC_0,    KC_EQL,  KC_TRNS,                                                                  KC_TRNS, RGB_HUD, RGB_HUI
+),
+/*
 [MDIA] = LAYOUT_ergozad(
     KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
     KC_TRNS, KC_TRNS, KC_TRNS, KC_MS_U, KC_TRNS, KC_TRNS, KC_TRNS,
@@ -144,4 +152,5 @@ KC_LALT,        CTL_T(KC_ESC),
     KC_TRNS,
     KC_TRNS, KC_TRNS, KC_WBAK
 ),
+ */
 };

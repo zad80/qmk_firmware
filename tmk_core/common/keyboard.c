@@ -259,6 +259,14 @@ void keyboard_init(void) {
     keyboard_post_init_kb(); /* Always keep this last */
 }
 
+void debug_toggle() {
+    dprint("debug_toggling\n\t");
+    debug_config.matrix = !debug_config.matrix;
+    debug_config.keyboard = !debug_config.keyboard;
+    debug_config.mouse = !debug_config.mouse;
+    debug_config.enable = !debug_config.enable;
+}
+
 /** \brief Keyboard task: Do keyboard routine jobs
  *
  * Do routine keyboard jobs:

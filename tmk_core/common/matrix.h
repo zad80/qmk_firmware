@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include <stdbool.h>
-
+#ifdef FLEX_COLS_SIZE
 #if (MATRIX_COLS <= 8)
 typedef uint8_t matrix_row_t;
 #elif (MATRIX_COLS <= 16)
@@ -29,7 +29,9 @@ typedef uint32_t matrix_row_t;
 #else
 #    error "MATRIX_COLS: invalid value"
 #endif
-
+#else
+typedef uint32_t matrix_row_t;
+#endif
 #if (MATRIX_ROWS <= 8)
 typedef uint8_t matrix_col_t;
 #elif (MATRIX_ROWS <= 16)

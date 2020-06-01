@@ -218,8 +218,7 @@ QUANTUM = quantum/ quantum/audio quantum/process_keycode tmk_core/common/
 #IINCDIR   = $(patsubst %,-I%,$(IINCDIR))
 #to use also tmk_core files use this line
 
-SRC += $(APP_SRC)
-#SRC += $(APP_SRC) $(QUANTUM_SRC)
+SRC += $(APP_SRC) $(QUANTUM_SRC)
 
 IINCDIR   = $(patsubst %,-I%,$(INCDIR) $(APP_INC) $(DINCDIR) $(UINCDIR) $(BLUETOOTH_INCDIR) $(LITTLEFS_INCDIR) $(INTERNALFS_INCDIR) $(QUANTUM))
 

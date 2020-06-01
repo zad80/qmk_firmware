@@ -50,14 +50,14 @@ extern debug_config_t debug_config;
 #define debug_matrix (debug_config.matrix)
 #define debug_keyboard (debug_config.keyboard)
 #define debug_mouse (debug_config.mouse)
-
+const char *byte_to_binary(int x, int size, char* zero);
 /*
  * Debug print utils
  */
 #ifndef NO_DEBUG
 
 #    define dprint(s)                   \
-        do {                            \
+        do {                           \
             if (debug_enable) print(s); \
         } while (0)
 #    define dprintln(s)                   \
