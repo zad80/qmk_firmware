@@ -36,6 +36,7 @@ NRFEXPRESS = $(NRF52)/feather_nrf52840_express
 NRFEXPRESS_LIB = $(NRF52_BASE)/libraries
 STARTUPLD = $(NRFEXPRESS)/ld
 BLUETOOTHDIR_LIB = $(NRFEXPRESS_LIB)/Bluefruit52Lib
+NEOPIXEL_LIB = $(NRFEXPRESS_LIB)/Adafruit_NeoPixel
 BLUETOOTH_INCDIR = $(BLUETOOTHDIR_LIB)/src/ $(BLUETOOTHDIR_LIB)/src/utility $(BLUETOOTHDIR_LIB)/src/services $(BLUETOOTHDIR_LIB)/src/clients
 LITTLEFS_DIR_LIB = $(NRFEXPRESS_LIB)/Adafruit_LittleFS
 LITTLEFS_INCDIR = $(LITTLEFS_DIR_LIB)/src/ $(LITTLEFS_DIR_LIB)/src/littlefs
@@ -46,6 +47,7 @@ ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 INCDIR += $(BLUETOOTH_INCDIR)
 INCDIR += $(LITTLEFS_INCDIR)
 INCDIR += $(INTERNALFS_INCDIR)
+INCDIR += $(NEOPIXEL_LIB)
 endif
 # Here we keep all the parameter for linking compiling and so on check platform
 INCDIR += $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/config \
@@ -87,7 +89,7 @@ LITTLEFS_SRC := $(call rwildcard,$(LITTLEFS_DIR_LIB)/src/,*.c)
 LITTLEFS_SRC += $(call rwildcard,$(LITTLEFS_DIR_LIB)/src/,*.cpp)
 INTERNALFS_SRC := $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.c)
 INTERNALFS_SRC += $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.cpp)
-
+NEOPIXEL_SRC += $(call rwildcard,$(NEOPIXEL_LIB)/,*.cpp)
 STARTUPASM = $(STARTUPLD)/gcc_startup_nrf52840.S $(STARTUPLD)/gcc_startup_nrf52.S
 
 CORESRC = $(NRF52)/Adafruit_TinyUSB_Core/Adafruit_TinyUSB_Core.cpp \
@@ -253,6 +255,7 @@ ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 	$(foreach APP,$(LITTLEFS_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(INTERNALFS_SRC), $(eval APP_C_SRC+=$(filter %.c, $(APP))) )
 	$(foreach APP,$(INTERNALFS_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+	$(foreach APP,$(NEOPIXEL_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 endif
 	echo filing $(APP_INC)
 
@@ -470,7 +473,7 @@ else
 	$(PRINT_OK); $(SILENT) || printf "$(MSG_FLASH_BOOTLOADER)"
 endif
 
-all: zip
+all: zip zipR
 clean: cleanfull
 # Target: clean project.
 cleanfull:

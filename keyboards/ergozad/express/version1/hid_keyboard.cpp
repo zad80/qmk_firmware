@@ -14,11 +14,14 @@
 #include <bluefruit.h>
 #include "keyboard.h"
 #include <stdarg.h>
+//#include <Adafruit_NeoPixel.h>
 #include QMK_KEYBOARD_H
 extern const uint8_t hid_keycode_to_ascii[128][2];
 BLEDis bledis;
 BLEHidAdafruit blehid;
-void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap);
+#define BLUTOOTH_TRANSMISSION_DISABLED LED_RED
+
+//Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
 
 void startAdv(void);
 bool hasKeyPressed = false;
@@ -106,7 +109,7 @@ static uint8_t keyboard_leds(void) { return bluefruit_keyboard_leds; }
 static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_system, send_consumer};
 
 
-static int send_bt = 0;
+static int send_bt = 1;
 
 host_driver_t *ergozad_driver(void) { return &driver; }
 
@@ -242,17 +245,20 @@ void matrix_init(void)
 
 void setup()
 {
-    Serial.begin(9600);
+    // Config Neopixels
+    //neopixel.begin();
+
+
     matrix_init();
     Bluefruit.begin();
-    Bluefruit.setTxPower(4);    // Check bluefruit.h for supported values
+    Bluefruit.setTxPower(0);    // Check bluefruit.h for supported values
     Bluefruit.setName("ergozad");
 
     // Configure and Start Device Information Service
     bledis.setManufacturer("Adafruit Industries");
     bledis.setModel("Bluefruit Feather 52");
     bledis.begin();
-
+    //neopixel.setPin(PIN_NEOPIXEL);
     /* Start BLE HID
      * Note: Apple requires BLE device must have min connection interval >= 20m
      * ( The smaller the connection interval the faster we could send data).
@@ -263,7 +269,7 @@ void setup()
     blehid.begin();
 
     // Set callback for set LED from central
-    blehid.setKeyboardLedCallback(set_keyboard_led);
+    //blehid.setKeyboardLedCallback(set_keyboard_led);
 
     /* Set connection interval (min, max) to your perferred value.
      * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
@@ -304,7 +310,9 @@ void startAdv(void)
     Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
     Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
-
+void stopAdv(void){
+    Bluefruit.setTxPower(-80);
+}
 char *s = "this is a key\n";
 char *p = s;
 void getline(char * buffer, int maxchar)
@@ -323,10 +331,17 @@ void getline(char * buffer, int maxchar)
 }
 void toggle_bluetooth() {
     printfn("toggle bluetoot");
+
     if (send_bt) {
         send_bt = 0;
+        Serial.begin(9600);
+        stopAdv();
+        ledOn(BLUTOOTH_TRANSMISSION_DISABLED);
     } else {
         send_bt = 1;
+        Serial.begin(1200);
+        startAdv();
+        ledOff(BLUTOOTH_TRANSMISSION_DISABLED);
     }
 }
 void serial_debugger() {
@@ -349,43 +364,14 @@ void serial_debugger() {
         printfn("you typed %s", line);
     }
 }
-
-void loop()
-{
-    //to debug
-    if (Serial.available()) {
+void    loop() {
+    // to debug
+    if (send_bt == 0; Serial.available()) {
         serial_debugger();
     }
     // tmk_core/common/keyboard.c
     keyboard_task();
-
-    //matrix_scan();
-
-
 }
-
-/**
- * Callback invoked when received Set LED from central.
- * Must be set previously with setKeyboardLedCallback()
- *
- * The LED bit map is as follows: (also defined by KEYBOARD_LED_* )
- *    Kana (4) | Compose (3) | ScrollLock (2) | CapsLock (1) | Numlock (0)
- */
-void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
-{
-    (void) conn_handle;
-
-    // light up Red Led if any bits is set
-    if ( led_bitmap )
-    {
-        ledOn( LED_RED );
-    }
-    else
-    {
-        ledOff( LED_RED );
-    }
-}
-
 
 static void send_keyboard(report_keyboard_t *report) {
     /*
