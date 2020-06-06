@@ -37,6 +37,7 @@ NRFEXPRESS_LIB = $(NRF52_BASE)/libraries
 STARTUPLD = $(NRFEXPRESS)/ld
 BLUETOOTHDIR_LIB = $(NRFEXPRESS_LIB)/Bluefruit52Lib
 NEOPIXEL_LIB = $(NRFEXPRESS_LIB)/Adafruit_NeoPixel
+BUTTONFEVER_LIB = $(NRFEXPRESS_LIB)/ButtonFever/src/
 BLUETOOTH_INCDIR = $(BLUETOOTHDIR_LIB)/src/ $(BLUETOOTHDIR_LIB)/src/utility $(BLUETOOTHDIR_LIB)/src/services $(BLUETOOTHDIR_LIB)/src/clients
 LITTLEFS_DIR_LIB = $(NRFEXPRESS_LIB)/Adafruit_LittleFS
 LITTLEFS_INCDIR = $(LITTLEFS_DIR_LIB)/src/ $(LITTLEFS_DIR_LIB)/src/littlefs
@@ -48,10 +49,12 @@ INCDIR += $(BLUETOOTH_INCDIR)
 INCDIR += $(LITTLEFS_INCDIR)
 INCDIR += $(INTERNALFS_INCDIR)
 INCDIR += $(NEOPIXEL_LIB)
+INCDIR += $(BUTTONFEVER_LIB)
 endif
 # Here we keep all the parameter for linking compiling and so on check platform
 INCDIR += $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/config \
          $(NRF52)/utility \
+		 $(NRF52)/common \
          $(NRF52)/nordic/nrfx $(NRF52)/nordic/nrfx/hal $(NRF52)/nordic/nrfx/mdk $(NRF52)/nordic/nrfx/soc \
          $(NRF52)/nordic/nrfx/drivers/include $(NRF52)/nordic/nrfx/drivers/src \
          $(NRF52)/nordic/softdevice/s140_nrf52_6.1.1_API/include \
@@ -90,6 +93,8 @@ LITTLEFS_SRC += $(call rwildcard,$(LITTLEFS_DIR_LIB)/src/,*.cpp)
 INTERNALFS_SRC := $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.c)
 INTERNALFS_SRC += $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.cpp)
 NEOPIXEL_SRC += $(call rwildcard,$(NEOPIXEL_LIB)/,*.cpp)
+BUTTONFEVER_LIB_SRC += $(call rwildcard,$(BUTTONFEVER_LIB)/,*.cpp)
+
 STARTUPASM = $(STARTUPLD)/gcc_startup_nrf52840.S $(STARTUPLD)/gcc_startup_nrf52.S
 
 CORESRC = $(NRF52)/Adafruit_TinyUSB_Core/Adafruit_TinyUSB_Core.cpp \
@@ -159,6 +164,10 @@ $(NRF52)/wiring_analog.cpp \
 $(NRF52)/wiring_analog_nRF52.c \
 $(NRF52)/wiring_digital.c \
 $(NRF52)/wiring_private.c \
+$(NRF52)/common/timer.c \
+$(NRF52)/common/suspend.c \
+$(NRF52)/common/eeprom.c \
+$(NRF52)/common/bootloader.c \
 $(NRF52)/wiring_shift.c $(STARTUPASM)
 
 
@@ -256,6 +265,8 @@ ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 	$(foreach APP,$(INTERNALFS_SRC), $(eval APP_C_SRC+=$(filter %.c, $(APP))) )
 	$(foreach APP,$(INTERNALFS_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(NEOPIXEL_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+	$(foreach APP,$(BUTTONFEVER_LIB_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+
 endif
 	echo filing $(APP_INC)
 
@@ -265,7 +276,7 @@ COMMON_FLAGS += $(CDC_FLAGS) -DCFG_TUSB_OS=OPT_OS_FREERTOS -D__LINT__ -D__NVIC_P
 
 ARDUINO_FLAGS += -DF_CPU=64000000 -DARDUINO=10809 -DARDUINO_NRF52840_FEATHER -DARDUINO_ARCH_NRF52 "-DARDUINO_BSP_VERSION=\"0.14.6\"" -DNRF52840_XXAA
 ARDUINO_FLAGS += -DUSBCON -DUSE_TINYUSB -DUSB_VID=0x239A -DUSB_PID=0x8029 "-DUSB_MANUFACTURER=\"Adafruit LLC\"" "-DUSB_PRODUCT=\"Feather nRF52840 Express\""
-ARDUINO_FLAGS += -DSOFTDEVICE_PRESENT -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES -DLFS_NAME_MAX=64 -Ofast -DCFG_DEBUG=2 -DQMK_KEYBOARD_H=\"$(QMK_KEYBOARD_H)\"
+ARDUINO_FLAGS += -DSOFTDEVICE_PRESENT -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES -DLFS_NAME_MAX=64 -Ofast -DCFG_DEBUG=2 -DQMK_KEYBOARD_H=\"$(QMK_KEYBOARD_H)\" $(HALF_LAYOUT)
 
 # avoid the problem in quantum debug_enabled not defined
 #ARDUINO_FLAGS += -include $(NRF52)/debug.h
@@ -473,7 +484,7 @@ else
 	$(PRINT_OK); $(SILENT) || printf "$(MSG_FLASH_BOOTLOADER)"
 endif
 
-all: zip zipR
+all: zip
 clean: cleanfull
 # Target: clean project.
 cleanfull:

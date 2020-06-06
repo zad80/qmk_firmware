@@ -177,10 +177,6 @@ void process_record(keyrecord_t *record) {
         return;
     }
     printf("process_record col=%d, row=%d\r\n", record->event.key.col, record->event.key.row);
-    if (record->event.pressed && record->event.key.col==8 && record->event.key.row==2) {
-         printf("toggle bluethoot");
-         toggle_bluetooth();
-    }
     if (!process_record_quantum(record)) return;
 
     action_t action = store_or_get_action(record->event.pressed, record->event.key);

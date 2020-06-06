@@ -28,17 +28,17 @@ Layout macro names are entirely lowercase, except for the word LAYOUT at the fro
     Br3c0, Br3c1, Br3c2, Br3c3, Br3c4, Br3c5,               Br3c8,\
     Br4c0, Br4c1, Br4c2, Br4c3, Br4c4,        Br4c6, Br4c7, Br4c8)\
    {                                                            \
-    {Ar0c0, Ar0c1, Ar0c2, Ar0c3, Ar0c4, Ar0c5, Ar0c6, KC_NO, KC_NO},\
-    {Ar1c0, Ar1c1, Ar1c2, Ar1c3, Ar1c4, Ar1c5, Ar1c6, KC_NO, KC_NO},\
-    {Ar2c0, Ar2c1, Ar2c2, Ar2c3, Ar2c4, Ar2c5, Ar2c6, Ar2c7, Ar2c8},\
-    {Ar3c0, Ar3c1, Ar3c2, Ar3c3, Ar3c4, Ar3c5, KC_NO, KC_NO, Ar3c8},\
-    {Ar4c0, Ar4c1, Ar4c2, Ar4c3, Ar4c4, KC_NO, Ar4c6, Ar4c7, Ar4c8},\
+    {Ar0c0, Ar0c1, Ar0c2, Ar0c3, Ar0c4, Ar0c5, Ar0c6, KC_NO, KC_NO,    Br0c0, Br0c1, Br0c2, Br0c3, Br0c4, Br0c5, Br0c6, KC_NO, KC_NO},\
+    {Ar1c0, Ar1c1, Ar1c2, Ar1c3, Ar1c4, Ar1c5, Ar1c6, KC_NO, KC_NO,    Br1c0, Br1c1, Br1c2, Br1c3, Br1c4, Br1c5, Br1c6, KC_NO, KC_NO},\
+    {Ar2c0, Ar2c1, Ar2c2, Ar2c3, Ar2c4, Ar2c5, Ar2c6, Ar2c7, Ar2c8,    Br2c0, Br2c1, Br2c2, Br2c3, Br2c4, Br2c5, Br2c6, Br2c7, Br2c8},\
+    {Ar3c0, Ar3c1, Ar3c2, Ar3c3, Ar3c4, Ar3c5, KC_NO, KC_NO, Ar3c8,    Br3c0, Br3c1, Br3c2, Br3c3, Br3c4, Br3c5, KC_NO, KC_NO, Br3c8},\
+    {Ar4c0, Ar4c1, Ar4c2, Ar4c3, Ar4c4, KC_NO, Ar4c6, Ar4c7, Ar4c8,    Br4c0, Br4c1, Br4c2, Br4c3, Br4c4, KC_NO, Br4c6, Br4c7, Br4c8},\
                                                                  \
-    {Br0c0, Br0c1, Br0c2, Br0c3, Br0c4, Br0c5, Br0c6, KC_NO, KC_NO},\
-    {Br1c0, Br1c1, Br1c2, Br1c3, Br1c4, Br1c5, Br1c6, KC_NO, KC_NO},\
-    {Br2c0, Br2c1, Br2c2, Br2c3, Br2c4, Br2c5, Br2c6, Br2c7, Br2c8},\
-    {Br3c0, Br3c1, Br3c2, Br3c3, Br3c4, Br3c5, KC_NO, KC_NO, Br3c8},\
-    {Br4c0, Br4c1, Br4c2, Br4c3, Br4c4, KC_NO, Br4c6, Br4c7, Br4c8},\
+    {},\
+    {},\
+    {},\
+    {},\
+    {},\
    }
 #endif //QMK_FIRMWARE_ERGOZAD_H
 

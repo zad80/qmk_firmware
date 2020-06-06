@@ -42,6 +42,7 @@ All projects need to have a config.h file that sets things like the matrix size,
  * on both halves.
  * */
 #define LOCAL_MATRIX_COLS 9
+#define LOCAL_MATRIX_OFFSET 0
 #define MATRIX_COLS LOCAL_MATRIX_COLS*2
 #define MATRIX_ROWS 5
 #define PIN_WIRE_SDA         (22)
@@ -66,23 +67,23 @@ All projects need to have a config.h file that sets things like the matrix size,
 
 	Using printf on the Arduino.
 	by Michael McElligott
-	
+
 	Usage:
 	Set a buffer size with _PRINTF_BUFFER_LENGTH_, default is 64 bytes, or about a single line
 	Set output stream with _Stream_Obj_. eg; SerialUSB
-	
+
 	printf(format string, argument(s) list).
 	printfn(): As above but appends a new line on each print; aka serial.println()
-	
+
 	eg; printf("%.2f, 0x%X", 1234.5678f, 32768);
-	
+
 	For a detailed list on printf specifiers:
 	http://www.cplusplus.com/reference/cstdio/printf/
 	and
 	http://man7.org/linux/man-pages/man3/printf.3.html
 
 
-	
+
 	Tested with the Arduino Due 1.6.6
 	Jan 2016
 

@@ -36,7 +36,7 @@ extern "C"
 {
 #endif // __cplusplus
 
-// Number of pins defined in PinDescription array
+// Number of pins defined in PinDescription array see variant.cpp
 #define PINS_COUNT           (34)
 #define NUM_DIGITAL_PINS     (34)
 #define NUM_ANALOG_INPUTS    (6) // A6 is used for battery, A7 is analog reference

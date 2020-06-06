@@ -1,16 +1,22 @@
+# The presence of this file means that the folder is a keyboard target and can be used in make commands.
+# This is where you setup the build environment for your keyboard and configure the default set of features.
+
 # MCU name
 MCU = cortex-m4
 NRF52840EX = NRF52840EXP
+PLARFORM = NRF52840EXP
 SPACE_CADET_ENABLE = no
 MAGIC_ENABLE = no
+BLUEFRUIT_ENABLE = yes
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
-APP_SRC += $(MAIN_APP_PATH)/hid_keyboard.cpp
-
+APP_SRC += ./$(MAIN_APP_PATH)/../hid_keyboard.cpp
+APP_INC += ./$(MAIN_APP_PATH)/
 MSG_COMPILING = Compiling ergozad test C:
 MSG_COMPILING_CPP = Compiling ergozad test C++:
 USE_FPU_OPT = true
 USE_FPU = true
+HALF_LAYOUT = -DHALF_LAYOUT_RIGHT
 # LED Configuration
 #LED_MATRIX_ENABLE = IS31FL3731
 
@@ -27,7 +33,7 @@ USE_FPU = true
 #SLEEP_LED_ENABLE = yes  # Breathing sleep LED during USB suspend
 #NKRO_ENABLE = yes	    # USB Nkey Rollover
 #CUSTOM_MATRIX = yes # Custom matrix file
-AUDIO_ENABLE = no
+#AUDIO_ENABLE = yes
 # SERIAL_LINK_ENABLE = yes
 
 # project specific files

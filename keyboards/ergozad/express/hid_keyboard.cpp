@@ -14,13 +14,24 @@
 #include <bluefruit.h>
 #include "keyboard.h"
 #include <stdarg.h>
+#include <BfButton.h>
+/**
+ * BE AWARE !!!! PIN DEFINITION
+ * the number used in digitalWrite and so on is used in the
+ * g_ADigitalPinMap[number_used]
+ * defined in variant.cpp in keyboards/ergozad/boards/nrf52/core/feather_nrf52840_express/variant.cpp
+ * so for example digitalWrite(LED_RED, 1) translate in write i to the pin mapped g_ADigitalPinMap[LED_RED]
+ **/
+
+
 //#include <Adafruit_NeoPixel.h>
 #include QMK_KEYBOARD_H
 extern const uint8_t hid_keycode_to_ascii[128][2];
 BLEDis bledis;
 BLEHidAdafruit blehid;
 #define BLUTOOTH_TRANSMISSION_DISABLED LED_RED
-
+#define USR_BUTTON_PIN 7
+BfButton user_button(BfButton::STANDALONE_DIGITAL, USR_BUTTON_PIN, false, HIGH);
 //Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
 
 void startAdv(void);
@@ -91,12 +102,10 @@ int col_count = sizeof(cols)/ sizeof(cols[0]);
 int row_count = sizeof(rows)/ sizeof(rows[0]);
 
 static matrix_row_t matrix[MATRIX_ROWS];
-static matrix_row_t matrix_debouncing[LOCAL_MATRIX_COLS];
+static matrix_row_t matrix_debouncing[MATRIX_ROWS];
+static bool debouncing = false;
+static uint16_t debouncing_time = 0;
 
-uint8_t offset = 0;
-#ifdef RIGHT_KEYBOARD // used to math the correct character pressed
-offset = MATRIX_ROWS - LOCAL_MATRIX_ROWS;
-#endif
 static void    send_keyboard(report_keyboard_t *report);
 static void    send_mouse(report_mouse_t *report);
 static void    send_system(uint16_t data);
@@ -113,6 +122,22 @@ static int send_bt = 1;
 
 host_driver_t *ergozad_driver(void) { return &driver; }
 
+void user_button_handler(BfButton *btn, BfButton::press_pattern_t pattern) {
+    switch (pattern) {
+        case BfButton::SINGLE_PRESS:
+            printfn(" double pressed.");
+            toggle_bluetooth();
+            break;
+        case BfButton::DOUBLE_PRESS:
+            printfn(" double pressed.");
+            break;
+        case BfButton::LONG_PRESS:
+            printfn(" long pressed.");
+            break;
+        default:
+            break;
+    }
+}
 /* action for key
 action_t action_for_key(uint8_t layer, keypos_t key){
     printfn("action_for_key layer = %d, keypos = [r=%d,c=%d]",layer, key.row, key.col);
@@ -137,7 +162,7 @@ matrix_row_t matrix_get_row(uint8_t row)
 }
 
 
-#define READ_ROW(r,c) (digitalRead(rows[r]) << c)
+#define READ_ROW(r,c) (digitalRead(rows[r]) << c + LOCAL_MATRIX_OFFSET)
 const char *byte_to_binary(int x, int size, char* zero)
 {
     static char b[32*2];
@@ -187,29 +212,34 @@ void print_prg_matrix() {
     }
 }
 
-
-
+// this is called by the tmk_core
 uint8_t matrix_scan(void) {
-    bool changed = false;
     // strobe the columns
     // Set columns to be output and initialize each to LOW.
     for (int r = 0; r < row_count; r++) {
         matrix_row_t data = 0;
-        matrix_row_t prev =  matrix[r];
+        matrix_row_t prev = matrix[r];
 
         for (int c = 0; c < col_count; c++) {
             digitalWrite(cols[c], HIGH);
-            data |= READ_ROW(r, c) ;
+            data |= READ_ROW(r, c);
             // Set columns to LOW.
             digitalWrite(cols[c], LOW);
         }
-
-        if (prev!=data) {
-            changed = true;
-            //printfn("prev = [%d] 0x%08x",r, prev);
-            //printfn("data = [%d] 0x%08x",r, data);
-            matrix[r] = data;
+        if (matrix_debouncing[r] != data) {
+            matrix_debouncing[r] = data;
+            if (!debouncing) {
+                debouncing      = true;
+                debouncing_time = timer_read();
+            }
         }
+        // matrix[r] = data;
+    }
+    if (debouncing && timer_elapsed(debouncing_time) > DEBOUNCE) {
+        for (int row = 0; row < row_count; row++) {
+            matrix[row] = matrix_debouncing[row];
+        }
+        debouncing = false;
     }
     return 1;
 }
@@ -239,6 +269,7 @@ void matrix_init(void)
         pinMode(cols[i], OUTPUT);
         digitalWrite(cols[i], LOW);
     }
+    //pinMode(USR_BUTTON, INPUT_PULLUP);
     print("DONE initializing gpio");
 }
 
@@ -247,8 +278,6 @@ void setup()
 {
     // Config Neopixels
     //neopixel.begin();
-
-
     matrix_init();
     Bluefruit.begin();
     Bluefruit.setTxPower(0);    // Check bluefruit.h for supported values
@@ -280,6 +309,10 @@ void setup()
     host_set_driver(ergozad_driver());
     // Set up and start advertising
     startAdv();
+    // Set up user button
+    user_button.onPress(user_button_handler)
+     .onDoublePress(user_button_handler) // default timeout
+     .onPressFor(user_button_handler, 1000); // custom timeout for 1 second
 }
 
 
@@ -371,6 +404,7 @@ void    loop() {
     }
     // tmk_core/common/keyboard.c
     keyboard_task();
+    user_button.read();
 }
 
 static void send_keyboard(report_keyboard_t *report) {
@@ -622,3 +656,4 @@ void eeprom_update_dword(uint32_t *Address, uint32_t Value) {
     }
     */
 }
+
