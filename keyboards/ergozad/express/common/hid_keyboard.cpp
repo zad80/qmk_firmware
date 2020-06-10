@@ -7,7 +7,8 @@
 #include "config.h"
 #include "matrix.h"
 #include "action.h"
-
+#include "hid_keyboard.h"
+#include "serial.h"
 #include "host.h"
 #include "report.h"
 #include <delay.h>
@@ -31,67 +32,11 @@ BLEDis bledis;
 BLEHidAdafruit blehid;
 #define BLUTOOTH_TRANSMISSION_DISABLED LED_RED
 #define USR_BUTTON_PIN 7
-BfButton user_button(BfButton::STANDALONE_DIGITAL, USR_BUTTON_PIN, false, HIGH);
+BfButton* user_button;
 //Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
 
 void startAdv(void);
-bool hasKeyPressed = false;
-#ifdef __cplusplus
-// place here the simbol you wish to export to c programs too
-extern "C"{
-    const char *byte_to_binary(int x, int size, char* zero);
-    void print(char *string);
-    void printfn(char *string, ...);
-    void xprint(char *string, ...);
-    void led_set(uint8_t usb_led);
-    void xprintf(char *string, ...);
-    uint8_t eeprom_read_byte(const uint8_t *Address);
-    void eeprom_write_byte(uint8_t *Address, uint8_t Value);
-    void eeprom_update_byte(uint8_t *Address, uint8_t Value);
-    uint16_t eeprom_read_word(const uint16_t *Address);
-    void eeprom_write_word(uint16_t *Address, uint16_t Value);
-    void eeprom_update_word(uint16_t *Address, uint16_t Value);
-    uint32_t eeprom_read_dword(const uint32_t *Address);
-    void eeprom_write_dword(uint32_t *Address, uint32_t Value);
-    void eeprom_update_dword(uint32_t *Address, uint32_t Value);
-    void toggle_bluetooth();
-};
-#endif
-
-
-#define _PRINTF_BUFFER_LENGTH_		256
-#define _Stream_Obj_				Serial
-
-
-static char _pf_buffer_[_PRINTF_BUFFER_LENGTH_];
-
-#define printf(a,...)														\
-	do{																		\
-	snprintf(_pf_buffer_, sizeof(_pf_buffer_), a, ##__VA_ARGS__);			\
-	_Stream_Obj_.print(_pf_buffer_);										\
-	}while(0)
-
-#define printfn(a,...)														\
-	do{																		\
-	snprintf(_pf_buffer_, sizeof(_pf_buffer_), a, ##__VA_ARGS__);			\
-	_Stream_Obj_.print(_pf_buffer_);										\
-	_Stream_Obj_.println("");                                               \
-	}while(0)
-
-void xprintf(char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    int len = vsnprintf(_pf_buffer_, _PRINTF_BUFFER_LENGTH_, format, args);
-    _Stream_Obj_.print(_pf_buffer_);
-    va_end(args);
-    return;
-}
-
-void print(char *string)
-{
-    _Stream_Obj_.print(string);
-    return;
-}
+int send_bt = 1;
 
 /*
  * Infinity Ergozad Pins usage: look at the config.h
@@ -117,15 +62,19 @@ static uint8_t keyboard_leds(void) { return bluefruit_keyboard_leds; }
 
 static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_system, send_consumer};
 
-
-static int send_bt = 1;
+extern char _pf_buffer_[_PRINTF_BUFFER_LENGTH_];
 
 host_driver_t *ergozad_driver(void) { return &driver; }
 
+/**
+ ****************************************************************************
+ ******************* BUTTON FUNCTIONS                   *********************
+ ****************************************************************************
+ * */
 void user_button_handler(BfButton *btn, BfButton::press_pattern_t pattern) {
     switch (pattern) {
         case BfButton::SINGLE_PRESS:
-            printfn(" double pressed.");
+            printfn(" single pressed.");
             toggle_bluetooth();
             break;
         case BfButton::DOUBLE_PRESS:
@@ -138,6 +87,27 @@ void user_button_handler(BfButton *btn, BfButton::press_pattern_t pattern) {
             break;
     }
 }
+
+void init_user_button() {
+    // internal pullup because is an onboard button
+    user_button = new BfButton(BfButton::STANDALONE_DIGITAL, USR_BUTTON_PIN, true, LOW);
+    user_button->onPress(user_button_handler);
+    user_button->onDoublePress(user_button_handler);
+    user_button->onPressFor(user_button_handler, 2000); //two seconds long press
+}
+
+void toggle_bluetooth() {
+    printfn("toggle bluetooth");
+    if (send_bt) {
+        send_bt = 0;
+        ledOn(BLUTOOTH_TRANSMISSION_DISABLED);
+    } else {
+        send_bt = 1;
+        ledOff(BLUTOOTH_TRANSMISSION_DISABLED);
+    }
+}
+
+
 /* action for key
 action_t action_for_key(uint8_t layer, keypos_t key){
     printfn("action_for_key layer = %d, keypos = [r=%d,c=%d]",layer, key.row, key.col);
@@ -151,6 +121,12 @@ void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {
 
 }
 
+/**
+ ****************************************************************************
+ ******************* MATRIX FUNCTIONS                   *********************
+ ****************************************************************************
+ * */
+
 bool matrix_is_on(uint8_t row, uint8_t col)
 {
     return (matrix[row] & (1<<col));
@@ -163,54 +139,6 @@ matrix_row_t matrix_get_row(uint8_t row)
 
 
 #define READ_ROW(r,c) (digitalRead(rows[r]) << c + LOCAL_MATRIX_OFFSET)
-const char *byte_to_binary(int x, int size, char* zero)
-{
-    static char b[32*2];
-    b[0] = '\0';
-
-    int z;
-    for (z = 0; z < size; z++)
-    {
-        strcat(b, ((x & (1<<z)) == (1<<z)) ? "1 " : zero);
-    }
-
-    return b;
-}
-const char *string_matrix_row(int layer, int row, int column)
-{
-    static char b[32*6];
-    char buffer[30];
-    b[0] = '\0';
-
-    int c;
-    for (c = 0; c < column; c++)
-    {
-        memset(buffer,'\0', 30);
-        //sprintf(buffer,"%d[%s]\t",pgm_read_word(&keymaps[(layer)][(row)][(c)]) );
-        sprintf(buffer,"%d[%s]\t",keymaps[(layer)][(row)][(c)] );
-        strcat(b, buffer);
-    }
-
-    return b;
-}
-
-void matrix_print(void) {
-    uint8_t data = 0;
-    // strobe the columns
-    // Set columns to be output and initialize each to LOW.
-    printfn("   1 2 3 4 5 6 7 8 9");
-    for (int r = 0; r < row_count; r++) {
-        printfn("%d: %s", r+1, byte_to_binary(matrix[r], col_count, "  "));
-    }
-}
-
-void print_prg_matrix() {
-    uint16_t data = 0;
-    printfn("   1 2 3 4 5 6 7 8 9");
-    for (int r = 0; r < row_count; r++) {
-        printfn("%d: %s", r+1, string_matrix_row(0 , r, col_count));
-    }
-}
 
 // this is called by the tmk_core
 uint8_t matrix_scan(void) {
@@ -248,6 +176,41 @@ void led_set(uint8_t usb_led) {
     return;
 }
 
+void matrix_print(void) {
+    uint8_t data = 0;
+    // strobe the columns
+    // Set columns to be output and initialize each to LOW.
+    printfn("   1 2 3 4 5 6 7 8 9");
+    for (int r = 0; r < row_count; r++) {
+        printfn("%d: %s", r+1, byte_to_binary(matrix[r], col_count, "  "));
+    }
+}
+
+void print_prg_matrix() {
+    uint16_t data = 0;
+    printfn("   1 2 3 4 5 6 7 8 9");
+    for (int r = 0; r < row_count; r++) {
+        printfn("%d: %s", r+1, string_matrix_row(0 , r, col_count));
+    }
+}
+
+const char *string_matrix_row(int layer, int row, int column)
+{
+    static char b[32*6];
+    char buffer[30];
+    b[0] = '\0';
+
+    int c;
+    for (c = 0; c < column; c++)
+    {
+        memset(buffer,'\0', 30);
+        //sprintf(buffer,"%d[%s]\t",pgm_read_word(&keymaps[(layer)][(row)][(c)]) );
+        sprintf(buffer,"%d[%s]\t",keymaps[(layer)][(row)][(c)] );
+        strcat(b, buffer);
+    }
+
+    return b;
+}
 void matrix_clean() {
     memset(matrix, 0, MATRIX_ROWS * sizeof(matrix_row_t));
     memset(matrix_debouncing, 0, MATRIX_ROWS * sizeof(matrix_row_t));
@@ -273,16 +236,27 @@ void matrix_init(void)
     print("DONE initializing gpio");
 }
 
+/**
+ ****************************************************************************
+ ******************* ARDUINO FUNCTIONS                  *********************
+ ****************************************************************************
+ * */
 
 void setup()
 {
     // Config Neopixels
     //neopixel.begin();
+    Serial.begin(9600);
+    // Set up user button
+
     matrix_init();
     Bluefruit.begin();
     Bluefruit.setTxPower(0);    // Check bluefruit.h for supported values
-    Bluefruit.setName("ergozad");
-
+    #ifdef HALF_LAYOUT_LEFT
+        Bluefruit.setName("ergozad LEFT");
+    #else
+        Bluefruit.setName("ergozad RIGHT");
+    #endif
     // Configure and Start Device Information Service
     bledis.setManufacturer("Adafruit Industries");
     bledis.setModel("Bluefruit Feather 52");
@@ -305,14 +279,12 @@ void setup()
      * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms
      */
     /* Bluefruit.Periph.setConnInterval(9, 12); */
+    init_user_button();
     printf("Setting host driver to bluefruit...\n");
     host_set_driver(ergozad_driver());
     // Set up and start advertising
     startAdv();
-    // Set up user button
-    user_button.onPress(user_button_handler)
-     .onDoublePress(user_button_handler) // default timeout
-     .onPressFor(user_button_handler, 1000); // custom timeout for 1 second
+    send_bt = 1;
 }
 
 
@@ -343,69 +315,30 @@ void startAdv(void)
     Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
     Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
-void stopAdv(void){
-    Bluefruit.setTxPower(-80);
-}
-char *s = "this is a key\n";
-char *p = s;
-void getline(char * buffer, int maxchar)
-{
-    uint8_t idx = 0;
-    char c;
-    do
-    {
-        while (Serial.available() == 0) ; // wait for a char this causes the blocking
-        c = Serial.read();
-        Serial.print(c); // echo on
-        buffer[idx++] = c;
-    }
-    while (c != '\n' && c != '\r' && idx < maxchar);
-    buffer[idx] = 0;
-}
-void toggle_bluetooth() {
-    printfn("toggle bluetoot");
 
-    if (send_bt) {
-        send_bt = 0;
-        Serial.begin(9600);
-        stopAdv();
-        ledOn(BLUTOOTH_TRANSMISSION_DISABLED);
-    } else {
-        send_bt = 1;
-        Serial.begin(1200);
-        startAdv();
-        ledOff(BLUTOOTH_TRANSMISSION_DISABLED);
-    }
-}
-void serial_debugger() {
-    char line[256];
-    getline(line, sizeof(line));
-    if (strncmp("m", line, strlen("m")) == 0) {
-        printf("print matrix");
-        print_prg_matrix();
 
-    }else if (strncmp("l", line, strlen("l")) == 0) {
-        printfn("reading matrix now");
-        matrix_scan();
-        matrix_print();
-    } else if (strncmp("d", line, strlen("d")) == 0) {
-        printfn("toggle debug");
-        debug_toggle();
-    }else if (strncmp("b", line, strlen("b")) == 0) {
-       toggle_bluetooth();
-    } else {
-        printfn("you typed %s", line);
-    }
-}
+u_int16_t serial_last_hb = 0;
 void    loop() {
     // to debug
-    if (send_bt == 0; Serial.available()) {
+    if (send_bt == 0 && Serial.available()) {
         serial_debugger();
+    } else {
+        Serial.flush();
     }
     // tmk_core/common/keyboard.c
     keyboard_task();
-    user_button.read();
+    user_button->read();
+    if (timer_elapsed(serial_last_hb) > 1000) {
+        printfn("hb send_bt=%d", send_bt);
+        serial_last_hb = timer_read();
+    }
 }
+
+/**
+ ****************************************************************************
+ ******************* KEYCODE FUNCTIONS                   ********************
+ ****************************************************************************
+ * */
 
 static void send_keyboard(report_keyboard_t *report) {
     /*
