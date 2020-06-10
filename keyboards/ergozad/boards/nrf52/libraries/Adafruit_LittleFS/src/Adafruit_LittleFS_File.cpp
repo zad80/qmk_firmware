@@ -1,4 +1,4 @@
-/* 
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach for Adafruit Industries
@@ -129,6 +129,11 @@ bool File::open (char const *filepath, uint8_t mode)
   {
     char const* splash = strrchr(filepath, '/');
     strncpy(_name, splash ? (splash + 1) : filepath, LFS_NAME_MAX);
+    // be sure to remove unwanted chars
+    for (int i = 0 ; i<LFS_NAME_MAX;i++) {
+        if (_name[i] < 0x20 || _name[i] > 0x7e )
+            _name[i] = '\0';
+    }
   }
 
   return ret;
