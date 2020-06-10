@@ -266,6 +266,7 @@ ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 	$(foreach APP,$(INTERNALFS_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(NEOPIXEL_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(BUTTONFEVER_LIB_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+	$(foreach APP,$(INTERNALFS_INCDIR), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 
 endif
 	echo filing $(APP_INC)

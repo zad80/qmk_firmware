@@ -14,8 +14,8 @@
 #include <delay.h>
 #include <bluefruit.h>
 #include "keyboard.h"
-#include <stdarg.h>
 #include <BfButton.h>
+#include "fs_utils.h"
 /**
  * BE AWARE !!!! PIN DEFINITION
  * the number used in digitalWrite and so on is used in the
@@ -101,6 +101,7 @@ void toggle_bluetooth() {
     if (send_bt) {
         send_bt = 0;
         ledOn(BLUTOOTH_TRANSMISSION_DISABLED);
+        while (Serial.available()) Serial.read() ;
     } else {
         send_bt = 1;
         ledOff(BLUTOOTH_TRANSMISSION_DISABLED);
@@ -220,7 +221,7 @@ void matrix_clean() {
 void matrix_init(void)
 {
     matrix_clean();
-    print("initializing gpio...");
+    printf("initializing gpio...");
     // Set rows to be input with interrupt for each.
     for (int i = 0; i < row_count; i++) {
         pinMode(rows[i], INPUT_PULLDOWN);
@@ -233,7 +234,7 @@ void matrix_init(void)
         digitalWrite(cols[i], LOW);
     }
     //pinMode(USR_BUTTON, INPUT_PULLUP);
-    print("DONE initializing gpio");
+    printf("DONE initializing gpio");
 }
 
 /**
@@ -318,20 +319,19 @@ void startAdv(void)
 
 
 u_int16_t serial_last_hb = 0;
-void    loop() {
+void  loop() {
     // to debug
     if (send_bt == 0 && Serial.available()) {
         serial_debugger();
-    } else {
-        Serial.flush();
     }
     // tmk_core/common/keyboard.c
     keyboard_task();
     user_button->read();
-    if (timer_elapsed(serial_last_hb) > 1000) {
+    /*if (timer_elapsed(serial_last_hb) > 1000) {
         printfn("hb send_bt=%d", send_bt);
         serial_last_hb = timer_read();
     }
+    */
 }
 
 /**
@@ -431,7 +431,6 @@ static void send_system(uint16_t data) {}
 +-------------------------------------+-------+
 */
 #define CONSUMER2BLUEFRUIT(usage) (usage == AUDIO_MUTE ? 0x0000 : (usage == AUDIO_VOL_UP ? 0x1000 : (usage == AUDIO_VOL_DOWN ? 0x2000 : (usage == TRANSPORT_NEXT_TRACK ? 0x0002 : (usage == TRANSPORT_PREV_TRACK ? 0x0004 : (usage == TRANSPORT_STOP ? 0x0010 : (usage == TRANSPORT_STOP_EJECT ? 0x0000 : (usage == TRANSPORT_PLAY_PAUSE ? 0x4000 : (usage == AL_CC_CONFIG ? 0x0000 : (usage == AL_EMAIL ? 0x0000 : (usage == AL_CALCULATOR ? 0x0000 : (usage == AL_LOCAL_BROWSER ? 0x0000 : (usage == AC_SEARCH ? 0x0400 : (usage == AC_HOME ? 0x0100 : (usage == AC_BACK ? 0x0000 : (usage == AC_FORWARD ? 0x0000 : (usage == AC_STOP ? 0x0000 : (usage == AC_REFRESH ? 0x0000 : (usage == AC_BOOKMARKS ? 0x0000 : 0)))))))))))))))))))
-
 static void send_consumer(uint16_t data) {
     printfn("send_consumer");
     /*

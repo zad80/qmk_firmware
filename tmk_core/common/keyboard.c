@@ -260,7 +260,7 @@ void keyboard_init(void) {
 }
 
 void debug_toggle() {
-    dprint("debug_toggling\n\t");
+    dprintf("debug_toggling\n\t");
     debug_config.matrix = !debug_config.matrix;
     debug_config.keyboard = !debug_config.keyboard;
     debug_config.mouse = !debug_config.mouse;
@@ -401,9 +401,9 @@ MATRIX_LOOP_END:
  */
 void keyboard_set_leds(uint8_t leds) {
     if (debug_keyboard) {
-        debug("keyboard_set_led: ");
+        dprintf("keyboard_set_led: ");
         debug_hex8(leds);
-        debug("\n");
+        dprintf("\n");
     }
     led_set(leds);
 }
