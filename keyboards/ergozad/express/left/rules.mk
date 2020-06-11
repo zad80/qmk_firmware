@@ -1,6 +1,9 @@
 # The presence of this file means that the folder is a keyboard target and can be used in make commands.
 # This is where you setup the build environment for your keyboard and configure the default set of features.
-
+# utilities script and tricks
+# How to recursively find all files with the same name in a given folder
+# Make does not offer a recursive wildcard function, so here's one:
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 # MCU name
 MCU = cortex-m4
 NRF52840EX = NRF52840EXP
@@ -9,8 +12,7 @@ MAGIC_ENABLE = no
 BLUEFRUIT_ENABLE = yes
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
-APP_SRC += ./$(MAIN_APP_PATH)/../common/hid_keyboard.cpp
-APP_SRC += ./$(MAIN_APP_PATH)/../common/serial.cpp ./$(MAIN_APP_PATH)/../common/fs_utils.cpp
+APP_SRC += $(call rwildcard,./$(MAIN_APP_PATH)/../common/,*.cpp)
 APP_INC += ./$(MAIN_APP_PATH)/
 APP_INC += ./$(MAIN_APP_PATH)/../common/
 MSG_COMPILING = Compiling ergozad test C:
