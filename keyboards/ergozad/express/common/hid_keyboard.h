@@ -15,6 +15,7 @@ void        eeprom_update_dword(uint32_t *Address, uint32_t Value);
 void        toggle_bluetooth();
 const char *string_matrix_row(int layer, int row, int column);
 void matrix_print(void);
+void toggle_volt();
 void print_prg_matrix();
 };
 #endif

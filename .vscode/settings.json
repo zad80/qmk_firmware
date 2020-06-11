@@ -15,6 +15,13 @@
       "xstddef": "c",
       "type_traits": "c",
       "utility": "c",
-      "random": "c"
+      "random": "c",
+      "*.tcc": "cpp",
+      "atomic": "cpp",
+      "fstream": "cpp",
+      "sstream": "cpp",
+      "*.ipp": "c",
+      "ostream": "c",
+      "cstdio": "c"
     }
 }

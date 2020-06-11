@@ -10,6 +10,7 @@ extern "C"{
     void xprintf(char *string, ...);
     void raw_print(char *string);
     void serial_debugger();
+    boolean isDebugging();
 };
 #define _PRINTF_BUFFER_LENGTH_		256
 #define _Stream_Obj_				Serial

@@ -16,6 +16,8 @@
 #include "keyboard.h"
 #include <BfButton.h>
 #include "fs_utils.h"
+#include "battery_utils.h"
+#include "singleLed.h"
 /**
  * BE AWARE !!!! PIN DEFINITION
  * the number used in digitalWrite and so on is used in the
@@ -24,37 +26,38 @@
  * so for example digitalWrite(LED_RED, 1) translate in write i to the pin mapped g_ADigitalPinMap[LED_RED]
  **/
 
-
 //#include <Adafruit_NeoPixel.h>
 #include QMK_KEYBOARD_H
 extern const uint8_t hid_keycode_to_ascii[128][2];
-BLEDis bledis;
-BLEHidAdafruit blehid;
-#define BLUTOOTH_TRANSMISSION_DISABLED LED_RED
+BLEDis               bledis;
+BLEHidAdafruit       blehid;
+#define BLUETOOTH_TRANSMISSION_DISABLED LED_RED
+sllib bt_trans_led(BLUETOOTH_TRANSMISSION_DISABLED);
 #define USR_BUTTON_PIN 7
-BfButton* user_button;
-//Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
+BfButton *user_button;
+// Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
 
 void startAdv(void);
-int send_bt = 1;
+int  send_bt   = 1;
+int  send_volt = 0;
 
 /*
  * Infinity Ergozad Pins usage: look at the config.h
-*/
-uint8_t cols[] = MATRIX_COL_PINS;
-uint8_t rows[] = MATRIX_ROW_PINS;
-int col_count = sizeof(cols)/ sizeof(cols[0]);
-int row_count = sizeof(rows)/ sizeof(rows[0]);
+ */
+uint8_t cols[]    = MATRIX_COL_PINS;
+uint8_t rows[]    = MATRIX_ROW_PINS;
+int     col_count = sizeof(cols) / sizeof(cols[0]);
+int     row_count = sizeof(rows) / sizeof(rows[0]);
 
 static matrix_row_t matrix[MATRIX_ROWS];
 static matrix_row_t matrix_debouncing[MATRIX_ROWS];
-static bool debouncing = false;
-static uint16_t debouncing_time = 0;
+static bool         debouncing      = false;
+static uint16_t     debouncing_time = 0;
 
-static void    send_keyboard(report_keyboard_t *report);
-static void    send_mouse(report_mouse_t *report);
-static void    send_system(uint16_t data);
-static void    send_consumer(uint16_t data);
+static void send_keyboard(report_keyboard_t *report);
+static void send_mouse(report_mouse_t *report);
+static void send_system(uint16_t data);
+static void send_consumer(uint16_t data);
 
 static uint8_t bluefruit_keyboard_leds = 0;
 
@@ -79,9 +82,11 @@ void user_button_handler(BfButton *btn, BfButton::press_pattern_t pattern) {
             break;
         case BfButton::DOUBLE_PRESS:
             printfn(" double pressed.");
+
             break;
         case BfButton::LONG_PRESS:
-            printfn(" long pressed.");
+            toggle_volt();
+            printfn(" long pressed. send_volt=%d", send_volt);
             break;
         default:
             break;
@@ -93,21 +98,45 @@ void init_user_button() {
     user_button = new BfButton(BfButton::STANDALONE_DIGITAL, USR_BUTTON_PIN, true, LOW);
     user_button->onPress(user_button_handler);
     user_button->onDoublePress(user_button_handler);
-    user_button->onPressFor(user_button_handler, 2000); //two seconds long press
+    user_button->onPressFor(user_button_handler, 2000);  // two seconds long press
+}
+
+void purge_serial() {
+    while(Serial.available()) Serial.read();
 }
 
 void toggle_bluetooth() {
     printfn("toggle bluetooth");
     if (send_bt) {
         send_bt = 0;
-        ledOn(BLUTOOTH_TRANSMISSION_DISABLED);
-        while (Serial.available()) Serial.read() ;
+        if (!send_volt) {
+            bt_trans_led.setOnSingle();
+            printfn("toggle bluetooth forcing off");
+        }
+        purge_serial();
     } else {
         send_bt = 1;
-        ledOff(BLUTOOTH_TRANSMISSION_DISABLED);
+        if (!send_volt) {
+            bt_trans_led.setOffSingle();
+            printfn("toggle bluetooth forcing on");
+        }
     }
 }
-
+void toggle_volt() {
+    printfn("toggle volt");
+    if (send_volt) {
+        send_volt = 0;
+        if (isDebugging()) blehid.keySequence("toggle volt OFF\n");
+        if (send_bt) {
+            bt_trans_led.setOffSingle();
+        } else {
+            bt_trans_led.setOnSingle();
+        }
+    } else {
+        if (isDebugging()) blehid.keySequence("toggle volt ON\n");
+        send_volt = 1;
+    }
+}
 
 /* action for key
 action_t action_for_key(uint8_t layer, keypos_t key){
@@ -118,9 +147,7 @@ action_t action_for_key(uint8_t layer, keypos_t key){
 }
 */
 /* user defined special function */
-void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {
-
-}
+void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {}
 
 /**
  ****************************************************************************
@@ -128,18 +155,11 @@ void action_function(keyrecord_t *record, uint8_t id, uint8_t opt) {
  ****************************************************************************
  * */
 
-bool matrix_is_on(uint8_t row, uint8_t col)
-{
-    return (matrix[row] & (1<<col));
-}
+bool matrix_is_on(uint8_t row, uint8_t col) { return (matrix[row] & (1 << col)); }
 
-matrix_row_t matrix_get_row(uint8_t row)
-{
-    return matrix[row];
-}
+matrix_row_t matrix_get_row(uint8_t row) { return matrix[row]; }
 
-
-#define READ_ROW(r,c) (digitalRead(rows[r]) << c + LOCAL_MATRIX_OFFSET)
+#define READ_ROW(r, c) (digitalRead(rows[r]) << c + LOCAL_MATRIX_OFFSET)
 
 // this is called by the tmk_core
 uint8_t matrix_scan(void) {
@@ -173,9 +193,7 @@ uint8_t matrix_scan(void) {
     return 1;
 }
 
-void led_set(uint8_t usb_led) {
-    return;
-}
+void led_set(uint8_t usb_led) { return; }
 
 void matrix_print(void) {
     uint8_t data = 0;
@@ -183,7 +201,7 @@ void matrix_print(void) {
     // Set columns to be output and initialize each to LOW.
     printfn("   1 2 3 4 5 6 7 8 9");
     for (int r = 0; r < row_count; r++) {
-        printfn("%d: %s", r+1, byte_to_binary(matrix[r], col_count, "  "));
+        printfn("%d: %s", r + 1, byte_to_binary(matrix[r], col_count, "  "));
     }
 }
 
@@ -191,22 +209,20 @@ void print_prg_matrix() {
     uint16_t data = 0;
     printfn("   1 2 3 4 5 6 7 8 9");
     for (int r = 0; r < row_count; r++) {
-        printfn("%d: %s", r+1, string_matrix_row(0 , r, col_count));
+        printfn("%d: %s", r + 1, string_matrix_row(0, r, col_count));
     }
 }
 
-const char *string_matrix_row(int layer, int row, int column)
-{
-    static char b[32*6];
-    char buffer[30];
+const char *string_matrix_row(int layer, int row, int column) {
+    static char b[32 * 6];
+    char        buffer[30];
     b[0] = '\0';
 
     int c;
-    for (c = 0; c < column; c++)
-    {
-        memset(buffer,'\0', 30);
-        //sprintf(buffer,"%d[%s]\t",pgm_read_word(&keymaps[(layer)][(row)][(c)]) );
-        sprintf(buffer,"%d[%s]\t",keymaps[(layer)][(row)][(c)] );
+    for (c = 0; c < column; c++) {
+        memset(buffer, '\0', 30);
+        // sprintf(buffer,"%d[%s]\t",pgm_read_word(&keymaps[(layer)][(row)][(c)]) );
+        sprintf(buffer, "%d[%s]\t", keymaps[(layer)][(row)][(c)]);
         strcat(b, buffer);
     }
 
@@ -217,15 +233,13 @@ void matrix_clean() {
     memset(matrix_debouncing, 0, MATRIX_ROWS * sizeof(matrix_row_t));
 }
 
-
-void matrix_init(void)
-{
+void matrix_init(void) {
     matrix_clean();
     printf("initializing gpio...");
     // Set rows to be input with interrupt for each.
     for (int i = 0; i < row_count; i++) {
         pinMode(rows[i], INPUT_PULLDOWN);
-        //attachInterrupt(digitalPinToInterrupt(rows[i].pin), rows[i].event, RISING);
+        // attachInterrupt(digitalPinToInterrupt(rows[i].pin), rows[i].event, RISING);
     }
 
     // Set columns to be output and initialize each to LOW.
@@ -233,7 +247,7 @@ void matrix_init(void)
         pinMode(cols[i], OUTPUT);
         digitalWrite(cols[i], LOW);
     }
-    //pinMode(USR_BUTTON, INPUT_PULLUP);
+    // pinMode(USR_BUTTON, INPUT_PULLUP);
     printf("DONE initializing gpio");
 }
 
@@ -243,26 +257,25 @@ void matrix_init(void)
  ****************************************************************************
  * */
 
-void setup()
-{
+void setup() {
     // Config Neopixels
-    //neopixel.begin();
+    // neopixel.begin();
     Serial.begin(9600);
     // Set up user button
 
     matrix_init();
     Bluefruit.begin();
-    Bluefruit.setTxPower(0);    // Check bluefruit.h for supported values
-    #ifdef HALF_LAYOUT_LEFT
-        Bluefruit.setName("ergozad LEFT");
-    #else
-        Bluefruit.setName("ergozad RIGHT");
-    #endif
+    Bluefruit.setTxPower(0);  // Check bluefruit.h for supported values
+#ifdef HALF_LAYOUT_LEFT
+    Bluefruit.setName("ergozad LEFT");
+#else
+    Bluefruit.setName("ergozad RIGHT");
+#endif
     // Configure and Start Device Information Service
     bledis.setManufacturer("Adafruit Industries");
     bledis.setModel("Bluefruit Feather 52");
     bledis.begin();
-    //neopixel.setPin(PIN_NEOPIXEL);
+    // neopixel.setPin(PIN_NEOPIXEL);
     /* Start BLE HID
      * Note: Apple requires BLE device must have min connection interval >= 20m
      * ( The smaller the connection interval the faster we could send data).
@@ -273,7 +286,7 @@ void setup()
     blehid.begin();
 
     // Set callback for set LED from central
-    //blehid.setKeyboardLedCallback(set_keyboard_led);
+    // blehid.setKeyboardLedCallback(set_keyboard_led);
 
     /* Set connection interval (min, max) to your perferred value.
      * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
@@ -288,9 +301,7 @@ void setup()
     send_bt = 1;
 }
 
-
-void startAdv(void)
-{
+void startAdv(void) {
     // Advertising packet
     Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
     Bluefruit.Advertising.addTxPower();
@@ -312,14 +323,18 @@ void startAdv(void)
      * https://developer.apple.com/library/content/qa/qa1931/_index.html
      */
     Bluefruit.Advertising.restartOnDisconnect(true);
-    Bluefruit.Advertising.setInterval(32, 244);    // in unit of 0.625 ms
-    Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
-    Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
+    Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
+    Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
+    Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
-
-
+void check_bt_led_state() {
+    if (send_volt && bt_trans_led.runningFunction == 0) {
+        if (isDebugging()) blehid.keySequence("check_bt_led_state forcing breath\n");
+        bt_trans_led.setBreathSingle(1000);
+    }
+}
 u_int16_t serial_last_hb = 0;
-void  loop() {
+void      loop() {
     // to debug
     if (send_bt == 0 && Serial.available()) {
         serial_debugger();
@@ -327,11 +342,17 @@ void  loop() {
     // tmk_core/common/keyboard.c
     keyboard_task();
     user_button->read();
-    /*if (timer_elapsed(serial_last_hb) > 1000) {
-        printfn("hb send_bt=%d", send_bt);
+    check_bt_led_state();
+    bt_trans_led.update();
+    if (send_volt && timer_elapsed(serial_last_hb) > 1000 * 60) {  // every 1minutes
+        char  volts[50];
+        float mv = readVBAT();
+        snprintf(volts, 50, "[%f]mv %d% \n", mv, mvToPercent(mv));
+        printfn(volts);
+        blehid.keySequence(volts);
         serial_last_hb = timer_read();
+
     }
-    */
 }
 
 /**
@@ -531,54 +552,54 @@ uint8_t matrix_scan(void) {
  *******************************************************************************/
 uint8_t eeprom_read_byte(const uint8_t *Address) {
     const uint16_t p = (const uint32_t)Address;
-    //return EEPROM_ReadDataByte(p);
+    // return EEPROM_ReadDataByte(p);
     return 0x0;
 }
 
 void eeprom_write_byte(uint8_t *Address, uint8_t Value) {
     uint16_t p = (uint32_t)Address;
-    //EEPROM_WriteDataByte(p, Value);
+    // EEPROM_WriteDataByte(p, Value);
 }
 
 void eeprom_update_byte(uint8_t *Address, uint8_t Value) {
     uint16_t p = (uint32_t)Address;
-    //EEPROM_WriteDataByte(p, Value);
+    // EEPROM_WriteDataByte(p, Value);
 }
 
 uint16_t eeprom_read_word(const uint16_t *Address) {
     const uint16_t p = (const uint32_t)Address;
-    //return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8);
+    // return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8);
     return 0x0;
 }
 
 void eeprom_write_word(uint16_t *Address, uint16_t Value) {
     uint16_t p = (uint32_t)Address;
-    //EEPROM_WriteDataByte(p, (uint8_t)Value);
-    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+    // EEPROM_WriteDataByte(p, (uint8_t)Value);
+    // EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
 }
 
 void eeprom_update_word(uint16_t *Address, uint16_t Value) {
     uint16_t p = (uint32_t)Address;
-    //EEPROM_WriteDataByte(p, (uint8_t)Value);
-    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+    // EEPROM_WriteDataByte(p, (uint8_t)Value);
+    // EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
 }
 
 uint32_t eeprom_read_dword(const uint32_t *Address) {
     const uint16_t p = (const uint32_t)Address;
-    //return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8) | (EEPROM_ReadDataByte(p + 2) << 16) | (EEPROM_ReadDataByte(p + 3) << 24);
+    // return EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8) | (EEPROM_ReadDataByte(p + 2) << 16) | (EEPROM_ReadDataByte(p + 3) << 24);
     return 0x0;
 }
 
 void eeprom_write_dword(uint32_t *Address, uint32_t Value) {
     uint16_t p = (const uint32_t)Address;
-    //EEPROM_WriteDataByte(p, (uint8_t)Value);
-    //EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
-    //EEPROM_WriteDataByte(p + 2, (uint8_t)(Value >> 16));
-    //EEPROM_WriteDataByte(p + 3, (uint8_t)(Value >> 24));
+    // EEPROM_WriteDataByte(p, (uint8_t)Value);
+    // EEPROM_WriteDataByte(p + 1, (uint8_t)(Value >> 8));
+    // EEPROM_WriteDataByte(p + 2, (uint8_t)(Value >> 16));
+    // EEPROM_WriteDataByte(p + 3, (uint8_t)(Value >> 24));
 }
 
 void eeprom_update_dword(uint32_t *Address, uint32_t Value) {
-    uint16_t p             = (const uint32_t)Address;
+    uint16_t p = (const uint32_t)Address;
     /*uint32_t existingValue = EEPROM_ReadDataByte(p) | (EEPROM_ReadDataByte(p + 1) << 8) | (EEPROM_ReadDataByte(p + 2) << 16) | (EEPROM_ReadDataByte(p + 3) << 24);
     if (Value != existingValue) {
         EEPROM_WriteDataByte(p, (uint8_t)Value);
@@ -588,4 +609,3 @@ void eeprom_update_dword(uint32_t *Address, uint32_t Value) {
     }
     */
 }
-
