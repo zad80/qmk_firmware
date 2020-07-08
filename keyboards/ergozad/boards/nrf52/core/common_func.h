@@ -152,6 +152,7 @@ const char* dbg_err_str(int32_t err_id); // TODO move to other place
     char fmt[] = "%00X\n";\
     fmt[2] += 2*sizeof(x); /* Hex with correct size */\
     PRINTF(fmt, (x) );\
+    PRINTF("\r\n");\
   }while(0)
 
 #define PRINT_BUFFER(buf, n) \
@@ -159,14 +160,14 @@ const char* dbg_err_str(int32_t err_id); // TODO move to other place
     uint8_t const* p8 = (uint8_t const*) (buf);\
     PRINTF(#buf ": ");\
     for(uint32_t i=0; i<(n); i++) PRINTF("%02x ", p8[i]);\
-    PRINTF("\n");\
+    PRINTF("\r\n");\
   }while(0)
 
 #define ADALOG(tag, ...) \
   do { \
     if ( tag ) PRINTF("[%-6s] ", tag);\
     PRINTF(__VA_ARGS__);\
-    PRINTF("\n");\
+    PRINTF("\r\n");\
   }while(0)
 
 #define ADALOG_BUFFER(_tag, _buf, _n) \

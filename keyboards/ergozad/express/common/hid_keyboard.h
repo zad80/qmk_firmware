@@ -1,5 +1,6 @@
 #ifndef HID_KEYBOARD_HEADER
 #define HID_KEYBOARD_HEADER
+#include <bluefruit.h>
 #ifdef __cplusplus
 // place here the simbol you wish to export to c programs too
 extern "C" {
@@ -17,6 +18,13 @@ const char *string_matrix_row(int layer, int row, int column);
 void matrix_print(void);
 void toggle_volt();
 void print_prg_matrix();
+void scan_callback(ble_gap_evt_adv_report_t* report);
+void cent_connect_callback(uint16_t conn_handle);
+void cent_disconnect_callback(uint16_t conn_handle, uint8_t reason);
+void cent_bleuart_rx_callback(BLEClientUart& cent_uart);
+void prph_connect_callback(uint16_t conn_handle);
+void prph_disconnect_callback(uint16_t conn_handle, uint8_t reason);
+void prph_bleuart_rx_callback(uint16_t conn_handle);
 };
 #endif
 #endif

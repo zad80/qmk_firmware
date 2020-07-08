@@ -33,7 +33,7 @@ void printf(char *format, ...) {
     char* buf = (char *)calloc(bufsz + 1, 1);
     va_start(args, format);
     int len = vsnprintf(buf, bufsz + 1, format, args);
-    _Stream_Obj_.print(buf);
+    _Stream_Obj_.println(buf);
     va_end(args);
     free(buf);
     return;
@@ -73,6 +73,7 @@ const char *byte_to_binary(int x, int size, char* zero)
 
     return b;
 }
+
 
 char *s = "this is a key\n";
 char *p = s;

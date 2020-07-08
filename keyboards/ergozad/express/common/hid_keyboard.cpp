@@ -12,12 +12,13 @@
 #include "host.h"
 #include "report.h"
 #include <delay.h>
-#include <bluefruit.h>
+
 #include "keyboard.h"
 #include <BfButton.h>
 #include "fs_utils.h"
 #include "battery_utils.h"
 #include "singleLed.h"
+//#define HALF_LAYOUT_LEFT
 /**
  * BE AWARE !!!! PIN DEFINITION
  * the number used in digitalWrite and so on is used in the
@@ -30,17 +31,31 @@
 #include QMK_KEYBOARD_H
 extern const uint8_t hid_keycode_to_ascii[128][2];
 BLEDis               bledis;
-BLEHidAdafruit       blehid;
+uint8_t              myuuid[16] = {0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x00, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99};
+BLEUuid              pear(myuuid);
+u_int16_t            serial_last_hb = 0;
+u_int32_t            _r             = 0;
+u_int32_t            _c             = 0;
+#ifdef HALF_LAYOUT_LEFT
+// Peripheral hid service
+BLEHidAdafruit blehid;
+
+// Central uart client
+BLEClientUart clientUart;
+#else
+// Peripheral uart service
+BLEUart bleuart;
+#endif
 #define BLUETOOTH_TRANSMISSION_DISABLED LED_RED
 sllib bt_trans_led(BLUETOOTH_TRANSMISSION_DISABLED);
 #define USR_BUTTON_PIN 7
 BfButton *user_button;
 // Adafruit_NeoPixel neopixel = Adafruit_NeoPixel();
 
-void startAdv(void);
-int  send_bt   = 1;
-int  send_volt = 0;
-
+void    startAdv(void);
+int     send_bt          = 1;
+int     send_volt        = 0;
+boolean master_connected = false;
 /*
  * Infinity Ergozad Pins usage: look at the config.h
  */
@@ -102,7 +117,7 @@ void init_user_button() {
 }
 
 void purge_serial() {
-    while(Serial.available()) Serial.read();
+    while (Serial.available()) Serial.read();
 }
 
 void toggle_bluetooth() {
@@ -124,16 +139,21 @@ void toggle_bluetooth() {
 }
 void toggle_volt() {
     printfn("toggle volt");
+
     if (send_volt) {
         send_volt = 0;
+#ifdef HALF_LAYOUT_LEFT
         if (isDebugging()) blehid.keySequence("toggle volt OFF\n");
+#endif
         if (send_bt) {
             bt_trans_led.setOffSingle();
         } else {
             bt_trans_led.setOnSingle();
         }
     } else {
+#ifdef HALF_LAYOUT_LEFT
         if (isDebugging()) blehid.keySequence("toggle volt ON\n");
+#endif
         send_volt = 1;
     }
 }
@@ -183,11 +203,36 @@ uint8_t matrix_scan(void) {
             }
         }
         // matrix[r] = data;
+
+#ifndef HALF_LAYOUT_LEFT
+        if (!send_volt && _r == r && timer_elapsed(serial_last_hb) > 1000 * 5) {
+            matrix_debouncing[_r] = 1 << (_c + LOCAL_MATRIX_OFFSET);
+            debouncing            = true;
+            _c++;
+            serial_last_hb = timer_read();
+            if (_c == LOCAL_MATRIX_COLS) {
+                _c = 0;
+                _r++;
+            }
+            if (_r == MATRIX_ROWS) {
+                _r = 0;
+            }
+        }
+#endif  // simulation
     }
     if (debouncing && timer_elapsed(debouncing_time) > DEBOUNCE) {
         for (int row = 0; row < row_count; row++) {
             matrix[row] = matrix_debouncing[row];
         }
+#ifndef HALF_LAYOUT_LEFT
+        if (master_connected) {
+            if (!send_volt) {
+                char keys[50];
+                snprintf(keys, 50, "%x0x%08x", _r, matrix[_r]);
+                bleuart.print(keys);
+            }
+        }
+#endif
         debouncing = false;
     }
     return 1;
@@ -264,18 +309,49 @@ void setup() {
     // Set up user button
 
     matrix_init();
-    Bluefruit.begin();
-    Bluefruit.setTxPower(0);  // Check bluefruit.h for supported values
+
 #ifdef HALF_LAYOUT_LEFT
-    Bluefruit.setName("ergozad LEFT");
+    Bluefruit.setName("ergozad MASTER");
+    // initialize the Bluefruit with one peripheral (1 by default) connection and one central.
+    Bluefruit.begin(1, 1);
+    // Callbacks for Central
+    Bluefruit.Central.setConnectCallback(cent_connect_callback);
+    Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
+    // Init BLE Central Uart Serivce
+    clientUart.begin();
+    clientUart.setRxCallback(cent_bleuart_rx_callback);
+    /* Start Central Scanning
+     * - Enable auto scan if disconnected
+     * - Interval = 100 ms, window = 80 ms
+     * - Filter only accept bleuart service
+     * - Don't use active scan
+     * - Start(timeout) with timeout = 0 will scan forever (until connected)
+     */
+    Bluefruit.Scanner.setRxCallback(scan_callback);
+    Bluefruit.Scanner.restartOnDisconnect(true);
+    Bluefruit.Scanner.setInterval(160, 80);  // in unit of 0.625 ms
+    Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
+    Bluefruit.Scanner.useActiveScan(false);
+    Bluefruit.Scanner.start(0);  // 0 = Don't stop scanning after n seconds
 #else
+    Bluefruit.begin();
     Bluefruit.setName("ergozad RIGHT");
+    // Callbacks for Peripheral
+    Bluefruit.Periph.setConnectCallback(prph_connect_callback);
+    Bluefruit.Periph.setDisconnectCallback(prph_disconnect_callback);
+
+    // Configure and Start BLE Uart Service
+    bleuart.begin();
+    bleuart.setRxCallback(prph_bleuart_rx_callback);
 #endif
+
+    Bluefruit.setTxPower(0);  // Check bluefruit.h for supported values
     // Configure and Start Device Information Service
     bledis.setManufacturer("Adafruit Industries");
     bledis.setModel("Bluefruit Feather 52");
     bledis.begin();
     // neopixel.setPin(PIN_NEOPIXEL);
+#ifdef HALF_LAYOUT_LEFT
     /* Start BLE HID
      * Note: Apple requires BLE device must have min connection interval >= 20m
      * ( The smaller the connection interval the faster we could send data).
@@ -283,8 +359,9 @@ void setup() {
      * up to 11.25 ms. Therefore BLEHidAdafruit::begin() will try to set the min and max
      * connection interval to 11.25  ms and 15 ms respectively for best performance.
      */
-    blehid.begin();
 
+    blehid.begin();
+#endif
     // Set callback for set LED from central
     // blehid.setKeyboardLedCallback(set_keyboard_led);
 
@@ -307,8 +384,13 @@ void startAdv(void) {
     Bluefruit.Advertising.addTxPower();
     Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
 
+#ifdef HALF_LAYOUT_LEFT
     // Include BLE HID service
     Bluefruit.Advertising.addService(blehid);
+#else
+    // Include bleuart 128-bit uuid
+    Bluefruit.Advertising.addService(bleuart);
+#endif
 
     // There is enough room for the dev name in the advertising packet
     Bluefruit.Advertising.addName();
@@ -329,12 +411,14 @@ void startAdv(void) {
 }
 void check_bt_led_state() {
     if (send_volt && bt_trans_led.runningFunction == 0) {
+#ifdef HALF_LAYOUT_LEFT
         if (isDebugging()) blehid.keySequence("check_bt_led_state forcing breath\n");
+#endif
         bt_trans_led.setBreathSingle(1000);
     }
 }
-u_int16_t serial_last_hb = 0;
-void      loop() {
+
+void loop() {
     // to debug
     if (send_bt == 0 && Serial.available()) {
         serial_debugger();
@@ -349,9 +433,10 @@ void      loop() {
         float mv = readVBAT();
         snprintf(volts, 50, "[%f]mv %d% \n", mv, mvToPercent(mv));
         printfn(volts);
+#ifdef HALF_LAYOUT_LEFT
         blehid.keySequence(volts);
         serial_last_hb = timer_read();
-
+#endif
     }
 }
 
@@ -375,7 +460,9 @@ static void send_keyboard(report_keyboard_t *report) {
 #endif
      */
     if (send_bt) {
+#ifdef HALF_LAYOUT_LEFT
         blehid.keyboardReport(report->mods, report->keys);
+#endif
     } else {
         bool shifted = false;
         if (report->mods) {
@@ -609,3 +696,166 @@ void eeprom_update_dword(uint32_t *Address, uint32_t Value) {
     }
     */
 }
+
+#ifdef HALF_LAYOUT_LEFT
+/*------------------------------------------------------------------*/
+/* Central
+ *------------------------------------------------------------------*/
+void scan_callback(ble_gap_evt_adv_report_t *report) {
+    //   /* Display the timestamp and device address */
+    //   if (report->scan_rsp)
+    //   {
+    //     /* This is a Scan Response packet */
+    //     printfn("[SR%10d] Packet received from ", millis());
+    //   }
+    //   else
+    //   {
+    //     /* This is a normal advertising packet */
+    //     printfn("[ADV%9d] Packet received from ", millis());
+    //   }
+
+    Serial.printBuffer(report->peer_addr.addr, 6, ':');
+    printfn("\n");
+
+    /* Raw buffer contents */
+    printfn("%14s %d bytes\n", "PAYLOAD", report->data.len);
+    if (report->data.len) {
+        printfn("%15s", " ");
+        Serial.printBuffer(report->data.p_data, report->data.len, '-');
+        printfn("");
+    }
+
+    /* RSSI value */
+    printfn("%14s %d dBm\n", "RSSI", report->rssi);
+
+    /* Adv Type */
+    printfn("%14s ", "ADV TYPE");
+    /*
+    switch (report->type)
+    {
+      case BLE_GAP_ADV_TYPE_ADV_IND:
+        printfn("Connectable undirected\n");
+        break;
+      case BLE_GAP_ADV_TYPE_ADV_DIRECT_IND:
+        printfn("Connectable directed\n");
+        break;
+      case BLE_GAP_ADV_TYPE_ADV_SCAN_IND:
+        printfn("Scannable undirected\n");
+        break;
+      case BLE_GAP_ADV_TYPE_ADV_NONCONN_IND:
+        printfn("Non-connectable undirected\n");
+        break;
+    }
+    */
+
+    /* Check for BLE UART UUID */
+    if (Bluefruit.Scanner.checkReportForUuid(report, BLEUART_UUID_SERVICE)) {
+        printfn("%14s %s\n", "BLE UART", "UUID Found!");
+    }
+
+    /* Check for DIS UUID */
+    if (Bluefruit.Scanner.checkReportForUuid(report, UUID16_SVC_DEVICE_INFORMATION)) {
+        printfn("%14s %s\n", "DIS", "UUID Found!");
+    }
+
+    printfn("");
+    // Since we configure the scanner with filterUuid()
+    // Scan callback only invoked for device with bleuart service advertised
+    // Connect to the device with bleuart service in advertising packet
+    Bluefruit.Central.connect(report);
+}
+
+void cent_connect_callback(uint16_t conn_handle) {
+    // Get the reference to current connection
+    BLEConnection *connection = Bluefruit.Connection(conn_handle);
+
+    char peer_name[32] = {0};
+    connection->getPeerName(peer_name, sizeof(peer_name));
+
+    printfn("[Cent] Connected to ");
+    printfn(peer_name);
+
+    if (clientUart.discover(conn_handle)) {
+        // Enable TXD's notify
+        clientUart.enableTXD();
+    } else {
+        // disconnect since we couldn't find bleuart service
+        Bluefruit.disconnect(conn_handle);
+    }
+}
+
+void cent_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+    (void)conn_handle;
+    (void)reason;
+
+    printfn("[Cent] Disconnected");
+}
+
+/**
+ * Callback invoked when uart received data
+ * @param cent_uart Reference object to the service where the data
+ * arrived. In this example it is clientUart
+ */
+void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
+    char str[40+1] = {0};
+    cent_uart.read(str, 40);
+
+    printfn("[Cent] RX: ");
+    printfn(str);
+    int r     = str[0] - 48;
+    uint32_t data = strtod(&str[1], NULL);
+    printfn("[Prph] RX: row=%d, data=[%s] 0x%008x", r, str[1], data);
+    matrix[r] |=data;
+    /*
+      if ( bleuart.notifyEnabled() )
+      {
+        // Forward data from our peripheral to Mobile
+        bleuart.print( str );
+      }else
+      {
+        // response with no prph message
+        clientUart.println("[Cent] Peripheral role not connected");
+      }
+      */
+}
+#else
+/*------------------------------------------------------------------*/
+/* Peripheral
+ *------------------------------------------------------------------*/
+void prph_connect_callback(uint16_t conn_handle) {
+    // Get the reference to current connection
+    BLEConnection *connection = Bluefruit.Connection(conn_handle);
+
+    char peer_name[32] = {0};
+    connection->getPeerName(peer_name, sizeof(peer_name));
+
+    printfn("[Prph] Connected to ");
+    printfn(peer_name);
+    master_connected = true;
+}
+
+void prph_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+    (void)conn_handle;
+    (void)reason;
+    printfn("[Prph] Disconnected");
+    master_connected = false;
+}
+
+void prph_bleuart_rx_callback(uint16_t conn_handle) {
+    (void)conn_handle;
+
+    // Forward data from Mobile to our peripheral
+    char str[40] = {0};
+    bleuart.read(str, 40);
+
+    printfn("[Prph] RX: ");
+    printfn(str);
+    /*
+        if (clientUart.discovered()) {
+            clientUart.print(str);
+        } else {
+            bleuart.println("[Prph] Central role not connected");
+        }
+        */
+}
+#endif

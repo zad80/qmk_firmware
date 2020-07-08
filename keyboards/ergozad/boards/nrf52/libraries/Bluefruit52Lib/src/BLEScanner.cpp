@@ -370,6 +370,7 @@ void BLEScanner::_eventHandler(ble_evt_t* evt)
 
       if ( invoke_cb )
       {
+
         if (_rx_cb) ada_callback(evt_report, sizeof(*evt_report), _rx_cb, evt_report);
       }else
       {

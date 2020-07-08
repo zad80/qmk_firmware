@@ -22,6 +22,9 @@
       "sstream": "cpp",
       "*.ipp": "c",
       "ostream": "c",
-      "cstdio": "c"
+      "cstdio": "c",
+      "array": "cpp",
+      "string": "cpp",
+      "string_view": "cpp"
     }
 }
