@@ -43,6 +43,9 @@ LITTLEFS_DIR_LIB = $(NRFEXPRESS_LIB)/Adafruit_LittleFS
 LITTLEFS_INCDIR = $(LITTLEFS_DIR_LIB)/src/ $(LITTLEFS_DIR_LIB)/src/littlefs
 INTERNALFS_DIR_LIB = $(NRFEXPRESS_LIB)/InternalFileSystem
 INTERNALFS_INCDIR = $(INTERNALFS_DIR_LIB)/src/ $(INTERNALFS_DIR_LIB)/src/flash
+OLED_INCDIR = $(NRFEXPRESS_LIB)/oled
+SPI_INCDIR = $(NRFEXPRESS_LIB)/SPI
+WIRE_INCDIR = $(NRFEXPRESS_LIB)/Wire
 # this is added only in case or BLUEFRUIT_ENABLE , see rules.mk
 ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 INCDIR += $(BLUETOOTH_INCDIR)
@@ -50,6 +53,10 @@ INCDIR += $(LITTLEFS_INCDIR)
 INCDIR += $(INTERNALFS_INCDIR)
 INCDIR += $(NEOPIXEL_LIB)
 INCDIR += $(BUTTONFEVER_LIB)
+INCDIR += $(SPI_INCDIR)
+INCDIR += $(WIRE_INCDIR)
+INCDIR += $(OLED_INCDIR)
+INCDIR += $(OLED_INCDIR)/csrc
 endif
 # Here we keep all the parameter for linking compiling and so on check platform
 INCDIR += $(NRF52) $(NRF52)/nordic $(NRF52)/cmsis/include $(NRF52)/freertos/config \
@@ -94,6 +101,10 @@ INTERNALFS_SRC := $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.c)
 INTERNALFS_SRC += $(call rwildcard,$(INTERNALFS_DIR_LIB)/src/,*.cpp)
 NEOPIXEL_SRC += $(call rwildcard,$(NEOPIXEL_LIB)/,*.cpp)
 BUTTONFEVER_LIB_SRC += $(call rwildcard,$(BUTTONFEVER_LIB)/,*.cpp)
+OLED_LIB_SRC += $(call rwildcard,$(OLED_INCDIR)/,*.cpp)
+OLED_LIB_SRC += $(call rwildcard,$(SPI_INCDIR)/,*.cpp)
+OLED_LIB_SRC += $(call rwildcard,$(WIRE_INCDIR)/,*.cpp)
+OLED_LIB_SRC += $(call rwildcard,$(OLED_INCDIR)/csrc,*.c)
 
 STARTUPASM = $(STARTUPLD)/gcc_startup_nrf52840.S $(STARTUPLD)/gcc_startup_nrf52.S
 
@@ -192,7 +203,8 @@ else ifneq ("$(wildcard $(KEYBOARD_PATH_1)/ld/$(MCU_LDSCRIPT).ld)","")
 else
     LDSCRIPT = $(STARTUPLD)/$(MCU_LDSCRIPT).ld
 endif
-#OPT_DEFS += -DPROTOCOL_CHIBIOS
+OPT_DEFS += -DU8X8_USE_PINS
+
 
 APP_SRC += $(NRFEXPRESS)/variant.cpp
 
@@ -267,13 +279,15 @@ ifeq ($(strip $(BLUEFRUIT_ENABLE)), yes)
 	$(foreach APP,$(NEOPIXEL_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(BUTTONFEVER_LIB_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
 	$(foreach APP,$(INTERNALFS_INCDIR), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+	$(foreach APP,$(OLED_LIB_SRC), $(eval APP_CPP_SRC+=$(filter %.cpp, $(APP))) )
+	$(foreach APP,$(OLED_LIB_SRC), $(eval APP_C_SRC+=$(filter %.c, $(APP))) )
 
 endif
 	echo filing $(APP_INC)
 
 COMMON_VPATH += $(DRIVER_PATH)/arm
 
-COMMON_FLAGS += $(CDC_FLAGS) -DCFG_TUSB_OS=OPT_OS_FREERTOS -D__LINT__ -D__NVIC_PRIO_BITS
+COMMON_FLAGS += $(CDC_FLAGS) -DCFG_TUSB_OS=OPT_OS_FREERTOS -D__LINT__ -D__NVIC_PRIO_BITS $(OPT_DEFS)
 
 ARDUINO_FLAGS += -DF_CPU=64000000 -DARDUINO=10809 -DARDUINO_NRF52840_FEATHER -DARDUINO_ARCH_NRF52 "-DARDUINO_BSP_VERSION=\"0.14.6\"" -DNRF52840_XXAA
 ARDUINO_FLAGS += -DUSBCON -DUSE_TINYUSB -DUSB_VID=0x239A -DUSB_PID=0x8029 "-DUSB_MANUFACTURER=\"Adafruit LLC\"" "-DUSB_PRODUCT=\"Feather nRF52840 Express\""
@@ -341,7 +355,7 @@ qmk:$(BUILD_DIR)/$(TARGET).zip
 # Define a list of all objects
 define compile
 mkdir -p $(OBJ_DIR)/$(dir $1)
-echo "SRC=$1 -> $2 $3 $1 -o $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))"
+echo "SRC_compile=$1 -> $2 $3 $1 -o $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))"
 @$(SILENT) || printf "$(MSG_COMPILING) $1" | $(AWK_CMD)
 $(eval CMD := $2 $3 $1 -o $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))
 @$(BUILD_CMD)
@@ -350,7 +364,7 @@ endef
 # Add the build directory to the output
 define compile_app
 mkdir -p $(OBJ_DIR)/$(dir $1)
-echo "SRC=$1 -> $2 $3 $1 -o $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))"
+echo "SRC_compile_app=$1 -> $2 $3 $1 -o $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))"
 @$(SILENT) || printf "APPLICATION $(MSG_COMPILING) $1" | $(AWK_CMD)
 $(eval CMD := $2 $3 $1 -o  $(OBJ_DIR)/$(patsubst %.s,%.o,$(patsubst %.S,%.o,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$1)))))
 @$(BUILD_CMD)
@@ -376,6 +390,7 @@ include $(wildcard $(DEPFILES))
 elf:$(BUILD_DIR)/$(TARGET).elf
 
 ALL_ASFLAGS = $(MCUFLAGS) -x assembler-with-cpp $(ASFLAGS) $(EXTRAFLAGS)
+
 # todo: remember to add again the dependency gen_file for building the code
 # necessary to add the qmk code
 $(BUILD_DIR)/lib$(TARGET).a:

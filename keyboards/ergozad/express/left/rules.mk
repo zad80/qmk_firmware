@@ -20,7 +20,7 @@ MSG_COMPILING_CPP = Compiling ergozad test C++:
 USE_FPU_OPT = true
 USE_FPU = true
 HALF_LAYOUT = -DHALF_LAYOUT_LEFT
-# LED Configuration
+
 #LED_MATRIX_ENABLE = IS31FL3731
 
 # Build Options

@@ -41,10 +41,10 @@ All projects need to have a config.h file that sets things like the matrix size,
  * and we address the keys in a full matrix structure
  * on both halves.
  * */
-#define LOCAL_MATRIX_COLS 9
+#define LOCAL_MATRIX_COLS 7
 #define LOCAL_MATRIX_OFFSET 0
 #define MATRIX_COLS LOCAL_MATRIX_COLS*2
-#define MATRIX_ROWS 5
+#define MATRIX_ROWS 6
 #define PIN_WIRE_SDA         (22)
 #define PIN_SERIAL_TX       (0)
 /*
@@ -59,8 +59,8 @@ All projects need to have a config.h file that sets things like the matrix size,
 #define A6               (20)
 #define A7               (21)
 
-#define MATRIX_COL_PINS {13, 12, 11, 10, 9, 6, 5, 22, 0}
-#define MATRIX_ROW_PINS {A5, A1, A2, A3, A4}
+#define MATRIX_COL_PINS {13, 12, 11, 10, 9, 6, 5}
+#define MATRIX_ROW_PINS {A0, A1, A2, A3, A4, A5}
 
 
 /*

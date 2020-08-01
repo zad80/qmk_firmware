@@ -18,6 +18,7 @@
 #include "fs_utils.h"
 #include "battery_utils.h"
 #include "singleLed.h"
+#include "oled_driver.h"
 //#define HALF_LAYOUT_LEFT
 /**
  * BE AWARE !!!! PIN DEFINITION
@@ -65,9 +66,10 @@ int     col_count = sizeof(cols) / sizeof(cols[0]);
 int     row_count = sizeof(rows) / sizeof(rows[0]);
 
 static matrix_row_t matrix[MATRIX_ROWS];
+static matrix_row_t matrix_slave[MATRIX_ROWS] = {};
 static matrix_row_t matrix_debouncing[MATRIX_ROWS];
-static bool         debouncing      = false;
-static uint16_t     debouncing_time = 0;
+static bool         debouncing[MATRIX_ROWS]      = {false, false, false, false, false, false};
+static uint16_t     debouncing_time[MATRIX_ROWS] = {0,1,2,3,4,5};
 
 static void send_keyboard(report_keyboard_t *report);
 static void send_mouse(report_mouse_t *report);
@@ -83,6 +85,7 @@ static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_sy
 extern char _pf_buffer_[_PRINTF_BUFFER_LENGTH_];
 
 host_driver_t *ergozad_driver(void) { return &driver; }
+
 
 /**
  ****************************************************************************
@@ -180,7 +183,7 @@ bool matrix_is_on(uint8_t row, uint8_t col) { return (matrix[row] & (1 << col));
 matrix_row_t matrix_get_row(uint8_t row) { return matrix[row]; }
 
 #define READ_ROW(r, c) (digitalRead(rows[r]) << c + LOCAL_MATRIX_OFFSET)
-
+#define MASK_MY ((1 << LOCAL_MATRIX_OFFSET) - 1)
 // this is called by the tmk_core
 uint8_t matrix_scan(void) {
     // strobe the columns
@@ -195,19 +198,20 @@ uint8_t matrix_scan(void) {
             // Set columns to LOW.
             digitalWrite(cols[c], LOW);
         }
+        data |= (matrix_slave[r] <<LOCAL_MATRIX_COLS );
         if (matrix_debouncing[r] != data) {
             matrix_debouncing[r] = data;
-            if (!debouncing) {
-                debouncing      = true;
-                debouncing_time = timer_read();
+            if (!debouncing[r]) {
+                debouncing[r]      = true;
+                debouncing_time[r] = timer_read();
             }
         }
         // matrix[r] = data;
 
-#ifndef HALF_LAYOUT_LEFT
+#ifdef HALF_LAYOUT_LEFT_SIMULATE
         if (!send_volt && _r == r && timer_elapsed(serial_last_hb) > 1000 * 5) {
             matrix_debouncing[_r] = 1 << (_c + LOCAL_MATRIX_OFFSET);
-            debouncing            = true;
+            debouncing[r]            = true;
             _c++;
             serial_last_hb = timer_read();
             if (_c == LOCAL_MATRIX_COLS) {
@@ -220,11 +224,20 @@ uint8_t matrix_scan(void) {
         }
 #endif  // simulation
     }
-    if (debouncing && timer_elapsed(debouncing_time) > DEBOUNCE) {
-        for (int row = 0; row < row_count; row++) {
+
+    for (int row = 0; row < row_count; row++) {
+        if (debouncing[row] && timer_elapsed(debouncing_time[row]) > DEBOUNCE) {
             matrix[row] = matrix_debouncing[row];
-        }
 #ifndef HALF_LAYOUT_LEFT
+            char keys[50];
+            snprintf(keys, 50, "%x0x%08x", row, matrix[row] >> LOCAL_MATRIX_OFFSET);  // send as local
+            if (master_connected) {
+                bleuart.print(keys);
+            }
+#endif
+             debouncing[row] = false;
+        }
+#ifdef HALF_LAYOUT_LEFT_SIMULATE
         if (master_connected) {
             if (!send_volt) {
                 char keys[50];
@@ -233,7 +246,7 @@ uint8_t matrix_scan(void) {
             }
         }
 #endif
-        debouncing = false;
+
     }
     return 1;
 }
@@ -277,6 +290,9 @@ void matrix_clean() {
     memset(matrix, 0, MATRIX_ROWS * sizeof(matrix_row_t));
     memset(matrix_debouncing, 0, MATRIX_ROWS * sizeof(matrix_row_t));
 }
+void clean_matrix_slave() {
+    memset(matrix_slave, 0, MATRIX_ROWS * sizeof(matrix_row_t));
+}
 
 void matrix_init(void) {
     matrix_clean();
@@ -306,9 +322,10 @@ void setup() {
     // Config Neopixels
     // neopixel.begin();
     Serial.begin(9600);
+    oled_setup();
     // Set up user button
-
     matrix_init();
+
 
 #ifdef HALF_LAYOUT_LEFT
     Bluefruit.setName("ergozad MASTER");
@@ -420,6 +437,7 @@ void check_bt_led_state() {
 
 void loop() {
     // to debug
+    oled_update();
     if (send_bt == 0 && Serial.available()) {
         serial_debugger();
     }
@@ -774,6 +792,9 @@ void cent_connect_callback(uint16_t conn_handle) {
 
     printfn("[Cent] Connected to ");
     printfn(peer_name);
+    //setOledHeader();
+    print_oled(0,20,"Connected:",false);
+    print_oled(10,20,peer_name,false);
 
     if (clientUart.discover(conn_handle)) {
         // Enable TXD's notify
@@ -787,15 +808,16 @@ void cent_connect_callback(uint16_t conn_handle) {
 void cent_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
     (void)conn_handle;
     (void)reason;
-
     printfn("[Cent] Disconnected");
+    //setOledHeader();
+    clean_matrix_slave();
 }
-
 /**
  * Callback invoked when uart received data
  * @param cent_uart Reference object to the service where the data
  * arrived. In this example it is clientUart
  */
+
 void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
     char str[40+1] = {0};
     cent_uart.read(str, 40);
@@ -804,8 +826,9 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
     printfn(str);
     int r     = str[0] - 48;
     uint32_t data = strtod(&str[1], NULL);
-    printfn("[Prph] RX: row=%d, data=[%s] 0x%008x", r, str[1], data);
-    matrix[r] |=data;
+    printfn("[Prph] RX: row=%d, data=0x%008x", r, data);
+    matrix_slave[r] = data;
+    //matrix[r] &=(data);
     /*
       if ( bleuart.notifyEnabled() )
       {
@@ -832,6 +855,7 @@ void prph_connect_callback(uint16_t conn_handle) {
     printfn("[Prph] Connected to ");
     printfn(peer_name);
     master_connected = true;
+    //setOledHeader();
 }
 
 void prph_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
@@ -839,6 +863,7 @@ void prph_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
     (void)reason;
     printfn("[Prph] Disconnected");
     master_connected = false;
+    //setOledHeader();
 }
 
 void prph_bleuart_rx_callback(uint16_t conn_handle) {
